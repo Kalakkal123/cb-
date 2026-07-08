@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Universal Market Simulator Dashboard</title>
+<title>Universal Trading Simulator</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
@@ -36,7 +36,7 @@ small{color:#cbd5e1}
 .status-badge{font-size:12px;background:#2563eb;padding:4px 10px;border-radius:6px;float:right;font-weight:bold}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb:background:#475569;border-radius:10px}
+::-webkit-scrollbar-thumb{background:#475569;border-radius:10px}
 ::-webkit-scrollbar-thumb:hover{background:#64748b}
 </style>
 </head>
@@ -45,13 +45,13 @@ small{color:#cbd5e1}
 <div class="app-container">
   <div class="main-content">
     <div class="card">
-      <div class="status-badge" id="api-status">Engine: Live Network</div>
-      <h1>🌍 Universal Market Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>Search any US stock, Indian stock, or indices like <b>SENSEX</b>, <b>AMD</b>, <b>CUPID</b>, <b>AAPL</b>.</small></p>
+      <div class="status-badge" id="api-status">Engine: 12Data</div>
+      <h1>🌍 Multi-Market Trading Board</h1>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>Searches Twelve Data. Automatically routes through an unlimited live backup network if rate limits are hit.</small></p>
       
       <div class="search-box">
-        <input id="symbol" placeholder="Search code (e.g., AMD, AAPL, CUPID, SENSEX)" value="SENSEX">
-        <button onclick="handleSearch()">Search Market</button>
+        <input id="symbol" placeholder="Search any stock (e.g., AAPL, AMD, GOOGL, CUPID, SENSEX, RELIANCE)" value="AAPL">
+        <button onclick="handleSearch()">Search Asset</button>
       </div>
 
       <h2 id="company" style="margin-bottom:5px; color:#f8fafc;">--</h2>
@@ -66,17 +66,18 @@ small{color:#cbd5e1}
 
   <div class="sidebar">
     <div class="sidebar-header">
-      <h3>🔥 Top Diverse Watchlist</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to load real live charts</p>
+      <h3>🔥 Popular Watchlist</h3>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to load live data arrays</p>
     </div>
     <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
 
 <script>
+const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
 let chart;
 
-// Watchlist array grouping all asset types together
+// Base configuration sample watchlist mapping
 const popularStocks = [
   { ticker: "SENSEX", name: "BSE SENSEX Index", market: "INDEX" },
   { ticker: "AMD", name: "Advanced Micro Devices", market: "NASDAQ" },
@@ -112,19 +113,88 @@ function handleSearch() {
   if(query) loadAssetData(query);
 }
 
+// Master Orchestrator: Combines Twelve Data API with an unlimited live network fallback
 async function loadAssetData(symbol) {
+  updateStatusBadge("Engine: 12Data", "#2563eb");
+  
+  // Try Twelve Data API first
+  let twelveDataSuccess = await fetchTwelveData(symbol);
+  if (twelveDataSuccess) return;
+
+  // If Twelve Data is rate-limited or fails, seamlessly switch to the unlimited Live Backup network
+  console.warn("Twelve Data API limit reached or symbol format mismatch. Activating Backup Live Network Channel...");
+  updateStatusBadge("Engine: Live Backup", "#16a34a");
+  await fetchLiveBackupData(symbol);
+}
+
+function updateStatusBadge(text, bgColor) {
+  const badge = document.getElementById("api-status");
+  badge.innerText = text;
+  badge.style.background = bgColor;
+}
+
+// Twelve Data Primary Call
+async function fetchTwelveData(symbol) {
+  try {
+    // Smart Exchange formatting for common Indian tickers inside Twelve Data's system
+    let exchangeParam = "";
+    if (["RELIANCE", "TCS", "CUPID"].includes(symbol)) {
+      exchangeParam = "&exchange=NSE";
+    }
+
+    const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}${exchangeParam}&apikey=${TWELVE_DATA_KEY}`;
+    const quoteResponse = await fetch(quoteUrl);
+    const quoteData = await quoteResponse.json();
+    
+    if(quoteData.code === 429 || quoteData.status === "error" || !quoteData.close) return false;
+
+    const tsUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}${exchangeParam}&interval=1day&outputsize=20&apikey=${TWELVE_DATA_KEY}`;
+    const tsResponse = await fetch(tsUrl);
+    const tsData = await tsResponse.json();
+
+    if(!tsData.values || tsData.values.length === 0) return false;
+
+    const currentPrice = parseFloat(quoteData.close).toFixed(2);
+    const changeValue = parseFloat(quoteData.change).toFixed(2);
+    const percentChange = parseFloat(quoteData.percent_change).toFixed(2);
+    
+    const currencySymbol = (quoteData.currency === "INR" || exchangeParam.includes("NSE")) ? "₹" : "$";
+
+    document.getElementById("company").innerText = quoteData.name || symbol;
+    document.getElementById("price").innerText = `${currencySymbol} ${currentPrice}`;
+    
+    const isPositive = changeValue >= 0;
+    document.getElementById("change").innerHTML = 
+    `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${changeValue}) Today</span>`;
+
+    const history = [...tsData.values].reverse();
+    const labels = history.map(v => {
+      const date = new Date(v.datetime);
+      return date.toLocaleDateString('en-US', {day:'2-digit', month:'short'});
+    });
+    const prices = history.map(v => parseFloat(v.close).toFixed(2));
+
+    renderLineChart(symbol, labels, prices, isPositive);
+    return true;
+  } catch (error) {
+    console.error("Twelve Data API Engine down:", error);
+    return false;
+  }
+}
+
+// Unlimited Live Backup Network (Using CORS Public Proxy to pull authentic historical market updates)
+async function fetchLiveBackupData(symbol) {
   let finalTicker = symbol;
   let currencySymbol = "₹";
 
-  // Smart symbol router mapping
+  // Auto-router to map indices and global formats securely
   if (symbol === "SENSEX") {
-    finalTicker = "^BSESN"; // Map to the official Yahoo Ticker for BSE Sensex
+    finalTicker = "^BSESN";
     currencySymbol = "Pts";
-  } else if (["AMD", "AAPL", "GOOGL", "TSLA", "NVDA", "MSFT"].includes(symbol)) {
-    finalTicker = symbol; // Clean US tech tickers
+  } else if (["AMD", "AAPL", "GOOGL", "TSLA", "NVDA", "MSFT", "AMZN"].includes(symbol)) {
+    finalTicker = symbol;
     currencySymbol = "$";
   } else {
-    // Default fallback routing for Indian stocks (CUPID, RELIANCE, etc.)
     if (!symbol.endsWith(".NS") && !symbol.endsWith(".BO")) {
       finalTicker = `${symbol}.NS`;
     }
@@ -136,13 +206,11 @@ async function loadAssetData(symbol) {
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
     
     const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("Network issues");
-    
     const wrapper = await response.json();
     const data = JSON.parse(wrapper.contents);
     
     if(!data.chart || !data.chart.result) {
-      alert(`Asset "${symbol}" not recognized. For Indian stocks try standard symbols like CUPID or TCS.`);
+      alert(`Asset "${symbol}" could not be located on the backup exchange.`);
       return;
     }
 
@@ -151,26 +219,18 @@ async function loadAssetData(symbol) {
     const timestamps = result.timestamp;
     const quotes = result.indicators.quote[0].close;
 
-    if(!timestamps || !quotes) {
-      alert("Trading history arrays are empty for this ticker selection.");
-      return;
-    }
-
-    // Capture quote statistics
     const currentPrice = meta.regularMarketPrice.toFixed(2);
     const previousClose = meta.previousClose;
     const change = (currentPrice - previousClose).toFixed(2);
     const percentChange = ((change / previousClose) * 100).toFixed(2);
     const isPositive = change >= 0;
 
-    // Inject parameters safely into DOM container elements
     const matched = popularStocks.find(s => s.ticker === symbol);
-    document.getElementById("company").innerText = matched ? matched.name : `${symbol} Asset Profile`;
+    document.getElementById("company").innerText = matched ? matched.name : `${symbol} Equity Asset`;
     document.getElementById("price").innerText = currencySymbol === "Pts" ? `${currentPrice} Pts` : `${currencySymbol} ${currentPrice}`;
     document.getElementById("change").innerHTML = 
     `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${change}) Today</span>`;
 
-    // Process dates cleanly for line graph axes
     const labels = [];
     const prices = [];
     for(let i = 0; i < timestamps.length; i++) {
@@ -181,42 +241,44 @@ async function loadAssetData(symbol) {
       }
     }
 
-    // Draw lines onto Chart.js element configurations
-    if(chart) chart.destroy();
-    chart = new Chart(document.getElementById("chart"), {
-      type: "line",
-      data: {
-        labels: labels,
-        datasets: [{
-          label: symbol,
-          data: prices,
-          borderColor: isPositive ? '#22c55e' : '#ef4444',
-          backgroundColor: 'transparent',
-          borderWidth: 2.5,
-          tension: 0.15,
-          pointRadius: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
-          y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
-        }
-      }
-    });
-
+    renderLineChart(symbol, labels, prices, isPositive);
   } catch (error) {
-    console.error(error);
-    alert("Connection error tracking live data profile.");
+    console.error("Backup Network Fail:", error);
+    alert("Unable to reach global market networks.");
   }
+}
+
+function renderLineChart(labelSymbol, labels, dataPoints, isPositive) {
+  if(chart) chart.destroy();
+  chart = new Chart(document.getElementById("chart"), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: labelSymbol,
+        data: dataPoints,
+        borderColor: isPositive ? '#22c55e' : '#ef4444',
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        tension: 0.15,
+        pointRadius: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
+        y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
+      }
+    }
+  });
 }
 
 window.onload = () => {
   buildWatchlist();
-  loadAssetData("SENSEX"); // Dynamic landing defaults directly to Sensex Index data!
+  loadAssetData("SENSEX");
 };
 </script>
 </body>
