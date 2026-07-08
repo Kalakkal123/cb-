@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI-Powered Trading Game Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
+.app-container{display:flex;height:100vh;max-width:1400px;margin:0 auto}
+
+.main-content{flex:1;padding:30px;overflow-y:auto;display:flex;flex-direction:column}
+.sidebar{width:320px;background:#1e293b;border-left:1px solid #334155;display:flex;flex-direction:column;height:100%}
+.sidebar-header{padding:20px;border-bottom:1px solid #334155}
+.sidebar-header h3{margin:0;font-size:18px}
+.stock-list{flex:1;overflow-y:auto;padding:10px}
+.stock-item{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;margin-bottom:8px;background:#1e293b;border:1px solid #334155;border-radius:10px;cursor:pointer;transition:all .2s ease}
+.stock-item:hover{background:#334155;transform:translateX(-3px)}
+.stock-item .ticker{font-weight:bold;font-size:15px}
+.stock-item .name{font-size:12px;color:#cbd5e1;margin-top:2px}
+.stock-item .market-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#475569;font-weight:bold}
+.card{background:#1e293b;padding:25px;border-radius:16px;border:1px solid #334155;display:flex;flex-direction:column;flex:1;}
+.search-box{display:flex;gap:10px;margin-bottom:20px}
+input,button{padding:12px;border:none;border-radius:8px;font-size:16px}
+input{flex:1;background:#334155;color:#fff}
+input:focus{outline:2px solid #2563eb}
+button{background:#2563eb;color:#fff;cursor:pointer;font-weight:bold;padding:12px 24px}
+button:hover{background:#1d4ed8}
+h1{margin-top:0;font-size:28px}
+#price{font-size:44px;font-weight:bold;margin-top:15px;letter-spacing:-1px}
+#change{font-size:18px;margin-bottom:15px;font-weight:500}
+.green{color:#22c55e}.red{color:#ef4444}
+.chart-container{margin-top:20px;position:relative;flex:1;min-height:350px}
+canvas{background:#1e293b;border-radius:12px}
+small{color:#cbd5e1}
+.status-badge{font-size:12px;background:#334155;padding:4px 8px;border-radius:6px;float:right}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#475569;border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:#64748b}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="main-content">
+    <div class="card">
+      <div class="status-badge" id="api-status">API: Primary</div>
+      <h1>🤖 AI Trading Dashboard</h1>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>Powered by OpenRouter <b>nex-agi/nex-n2-pro:free</b>. Search any global symbol or company name.</small></p>
+      
+      <div class="search-box">
+        <input id="symbol" placeholder="Enter stock code or company (e.g., TSLA, RELIANCE, BTC)" value="RELIANCE">
+        <button onclick="handleSearch()">Ask AI Engine</button>
+      </div>
+
+      <h2 id="company" style="margin-bottom:5px; color:#f8fafc;">--</h2>
+      <div id="price">--</div>
+      <div id="change">--</div>
+
+      <div class="chart-container">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h3>🔥 Top Simulation Assets</h3>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to generate real-time metrics</p>
+    </div>
+    <div class="stock-list" id="watchlist"></div>
+  </div>
+</div>
+
+<script>
+// ⚠️ PASTE YOUR OPENROUTER API KEYS HERE
+const PRIMARY_KEY = "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";
+const BACKUP_KEY = "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";
+
+let activeKey = PRIMARY_KEY;
+let keyUsingBackup = false;
+let chart;
+
+const popularStocks = [
+  { ticker: "RELIANCE", name: "Reliance Industries", market: "GLOBAL" },
+  { ticker: "TCS", name: "Tata Consultancy Services", market: "GLOBAL" },
+  { ticker: "AAPL", name: "Apple Inc.", market: "GLOBAL" },
+  { ticker: "TSLA", name: "Tesla Inc.", market: "GLOBAL" },
+  { ticker: "NVDA", name: "NVIDIA Corp.", market: "GLOBAL" },
+  { ticker: "BTC", name: "Bitcoin Crypto", market: "GLOBAL" }
+];
+
+function buildWatchlist() {
+  const container = document.getElementById("watchlist");
+  container.innerHTML = "";
+  popularStocks.forEach(stock => {
+    const item = document.createElement("div");
+    item.className = "stock-item";
+    item.onclick = () => {
+      document.getElementById("symbol").value = stock.ticker;
+      loadStockWithAI(stock.ticker);
+    };
+    item.innerHTML = `
+      <div>
+        <div class="ticker">${stock.ticker}</div>
+        <div class="name">${stock.name}</div>
+      </div>
+      <span class="market-tag">${stock.market}</span>
+    `;
+    container.appendChild(item);
+  });
+}
+
+function handleSearch() {
+  const query = document.getElementById("symbol").value.trim().toUpperCase();
+  if(query) loadStockWithAI(query);
+}
+
+async function loadStockWithAI(symbol) {
+  let success = await fetchAIQuote(symbol, activeKey);
+  
+  // Failover Check: If primary key fails, seamlessly try the backup key
+  if (!success && !keyUsingBackup) {
+    console.warn("Primary key failed or hit limits. Switching to backup OpenRouter key...");
+    keyUsingBackup = true;
+    activeKey = BACKUP_KEY;
+    document.getElementById("api-status").innerText = "API: Backup Enabled";
+    document.getElementById("api-status").style.background = "#b45309";
+    
+    // Retry once with the backup key
+    await fetchAIQuote(symbol, activeKey);
+  }
+}
+
+async function fetchAIQuote(symbol, apiKey) {
+  if (apiKey.includes("YOUR_")) {
+    alert("Please insert your active OpenRouter keys on lines 54 & 55 inside the script tag!");
+    return true; 
+  }
+
+  try {
+    // Structured engineering prompt forcing the model to respond ONLY with clean valid JSON
+    const systemPrompt = "You are a precise real-time market data API simulator. You must output raw JSON only, matching this structure perfectly: {\"name\":\"Company Name\",\"price\":2450.50,\"change\":1.25,\"percent_change\":0.05,\"currency\":\"₹\",\"history\":[2400,2410,2420,2435,2450.50]}. Supply 15 numerical data values in the history array representing daily close intervals. No markdown wrapping, no extra words.";
+    const userPrompt = `Provide the current status and latest 15-day history for asset ticker or company name: ${symbol}`;
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "nex-agi/nex-n2-pro:free",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.3
+      })
+    });
+
+    if (!response.ok) return false;
+
+    const resData = await response.json();
+    let rawText = resData.choices[0].message.content.trim();
+    
+    // Strip markdown JSON code block ticks if the AI accidentally sends them
+    if(rawText.startsWith("```json")) rawText = rawText.replace("```json", "").replace("```", "");
+    else if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "");
+
+    const marketData = JSON.parse(rawText.trim());
+
+    // Update UI elements from AI parsed JSON data
+    document.getElementById("company").innerText = marketData.name;
+    document.getElementById("price").innerText = `${marketData.currency} ${parseFloat(marketData.price).toFixed(2)}`;
+    
+    const isPositive = marketData.change >= 0;
+    document.getElementById("change").innerHTML = 
+    `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${parseFloat(marketData.percent_change).toFixed(2)}% (${parseFloat(marketData.change).toFixed(2)}) Today</span>`;
+
+    // Map dynamic arbitrary labels for history length
+    const labels = marketData.history.map((_, index) => `Day ${index + 1}`);
+
+    if(chart) chart.destroy();
+    chart = new Chart(document.getElementById("chart"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: symbol,
+          data: marketData.history,
+          borderColor: isPositive ? '#22c55e' : '#ef4444',
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          tension: 0.2,
+          pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
+        }
+      }
+    });
+
+    return true; 
+  } catch (err) {
+    console.error("OpenRouter endpoint parse error:", err);
+    return false; 
+  }
+}
+
+window.onload = () => {
+  buildWatchlist();
+  loadStockWithAI("RELIANCE");
+};
+</script>
+</body>
+</html>
