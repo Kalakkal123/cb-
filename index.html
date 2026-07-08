@@ -33,7 +33,7 @@ h1{margin-top:0;font-size:28px}
 .chart-container{margin-top:20px;position:relative;flex:1;min-height:350px}
 canvas{background:#1e293b;border-radius:12px}
 small{color:#cbd5e1}
-.status-badge{font-size:12px;background:#2563eb;padding:4px 10px;border-radius:6px;float:right;font-weight:bold}
+.status-badge{font-size:12px;background:#16a34a;padding:4px 10px;border-radius:6px;float:right;font-weight:bold}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#475569;border-radius:10px}
@@ -45,12 +45,12 @@ small{color:#cbd5e1}
 <div class="app-container">
   <div class="main-content">
     <div class="card">
-      <div class="status-badge" id="api-status">Engine: 12Data</div>
-      <h1>📊 Hybrid Trading Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>Retrieves live data from Twelve Data. Automatically swaps to Gemini AI or Local Engine if limits/auth issues are detected.</small></p>
+      <div class="status-badge" id="api-status">Engine: Live Network</div>
+      <h1>📈 Real-Time Trading Dashboard</h1>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>No keys required. Enter US tickers directly (e.g., <b>AAPL</b>) or Indian tickers (e.g., <b>IDFCFIRSTB</b>).</small></p>
       
       <div class="search-box">
-        <input id="symbol" placeholder="US: AAPL | India: RELIANCE (Auto-maps exchange)" value="RELIANCE">
+        <input id="symbol" placeholder="e.g., IDFCFIRSTB, RELIANCE, AAPL, TSLA" value="IDFCFIRSTB">
         <button onclick="handleSearch()">Search Asset</button>
       </div>
 
@@ -67,25 +67,23 @@ small{color:#cbd5e1}
   <div class="sidebar">
     <div class="sidebar-header">
       <h3>🔥 Top Watchlist Assets</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to change graph data</p>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to view real-time data</p>
     </div>
     <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
 
 <script>
-const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
-const GEMINI_API_KEY = "AQ.Ab8RN6LquC-e4QqaJhm1dGqxWZmnaHo4GDnClBfpqZ_insGSKw";
-
 let chart;
 
+// Pre-defined watchlist matching our search syntax
 const popularStocks = [
+  { ticker: "IDFCFIRSTB", name: "IDFC First Bank Ltd", market: "NSE" },
   { ticker: "RELIANCE", name: "Reliance Industries", market: "NSE" },
   { ticker: "TCS", name: "Tata Consultancy Services", market: "NSE" },
   { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
   { ticker: "TSLA", name: "Tesla Inc.", market: "NASDAQ" },
-  { ticker: "NVDA", name: "NVIDIA Corp.", market: "NASDAQ" },
-  { ticker: "BTC", name: "Bitcoin Asset", market: "CRYPTO" }
+  { ticker: "NVDA", name: "NVIDIA Corp.", market: "NASDAQ" }
 ];
 
 function buildWatchlist() {
@@ -115,183 +113,98 @@ function handleSearch() {
 }
 
 async function loadAssetData(symbol) {
-  // Clean symbol of any colons typed by accident
-  const cleanSymbol = symbol.split(":")[0];
-  
-  updateStatusBadge("Engine: 12Data", "#2563eb");
-  
-  // 1. Try real financial endpoints (with fixed URL query strings)
-  let twelveDataSuccess = await fetchTwelveData(cleanSymbol);
-  if (twelveDataSuccess) return;
+  // Determine if it's an Indian stock or US stock based on common tech names
+  const isUS = ["AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "GOOGL"].includes(symbol);
+  const finalTicker = isUS ? symbol : `${symbol}.NS`;
+  const currencySymbol = isUS ? "$" : "₹";
 
-  // 2. Try Gemini AI Model Channel
-  updateStatusBadge("Engine: Gemini AI", "#16a34a");
-  let geminiSuccess = await fetchGeminiData(cleanSymbol);
-  if (geminiSuccess) return;
-
-  // 3. Perfect Local Failover backup engine (so your game NEVER breaks)
-  updateStatusBadge("Engine: Local Game Sim", "#6b21a8");
-  generateLocalMockData(cleanSymbol);
-}
-
-function updateStatusBadge(text, bgColor) {
-  const badge = document.getElementById("api-status");
-  badge.innerText = text;
-  badge.style.background = bgColor;
-}
-
-// Fixed Twelve Data Fetch Engine
-async function fetchTwelveData(symbol) {
   try {
-    // Correct URL formatting: pass exchange parameter separately to prevent 404 errors
-    const isIndian = ["RELIANCE", "TCS"].includes(symbol) || popularStocks.find(s => s.ticker === symbol && s.market === "NSE");
-    const exchangeParam = isIndian ? "&exchange=NSE" : "";
+    // Free public bypass endpoint using Yahoo's historical tracker via AllOrigins CORS proxy
+    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${finalTicker}?range=1mo&interval=1d`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
     
-    const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}${exchangeParam}&apikey=${TWELVE_DATA_KEY}`;
-    const quoteResponse = await fetch(quoteUrl);
-    const quoteData = await quoteResponse.json();
+    const response = await fetch(proxyUrl);
+    if (!response.ok) throw new Error("Network issue");
     
-    if(quoteData.code === 429 || quoteData.status === "error" || !quoteData.close) return false;
+    const wrapper = await response.json();
+    const data = JSON.parse(wrapper.contents);
+    
+    if(!data.chart || !data.chart.result) {
+      alert("Stock ticker not recognized. Ensure spelling matches exactly.");
+      return;
+    }
 
-    const tsUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}${exchangeParam}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`;
-    const tsResponse = await fetch(tsUrl);
-    const tsData = await tsResponse.json();
+    const result = data.chart.result[0];
+    const meta = result.meta;
+    const timestamps = result.timestamp;
+    const quotes = result.indicators.quote[0].close;
 
-    if(!tsData.values || tsData.values.length === 0) return false;
+    if(!timestamps || !quotes) {
+      alert("Trading history unavailable for this symbol.");
+      return;
+    }
 
-    const currentPrice = parseFloat(quoteData.close).toFixed(2);
-    const changeValue = parseFloat(quoteData.change).toFixed(2);
-    const percentChange = parseFloat(quoteData.percent_change).toFixed(2);
-    const currencySymbol = isIndian ? "₹" : "$";
+    // Extract core parameters
+    const currentPrice = meta.regularMarketPrice.toFixed(2);
+    const previousClose = meta.previousClose;
+    const change = (currentPrice - previousClose).toFixed(2);
+    const percentChange = ((change / previousClose) * 100).toFixed(2);
+    const isPositive = change >= 0;
 
-    document.getElementById("company").innerText = quoteData.name || symbol;
+    // Display values to UI
+    const matched = popularStocks.find(s => s.ticker === symbol);
+    document.getElementById("company").innerText = matched ? matched.name : `${symbol} Equity`;
     document.getElementById("price").innerText = `${currencySymbol} ${currentPrice}`;
-    
-    const isPositive = changeValue >= 0;
     document.getElementById("change").innerHTML = 
-    `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${changeValue}) Today</span>`;
+    `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${change}) Today</span>`;
 
-    const history = [...tsData.values].reverse();
-    const labels = history.map(v => {
-      const date = new Date(v.datetime);
-      return date.toLocaleDateString('en-US', {day:'2-digit', month:'short'});
-    });
-    const prices = history.map(v => parseFloat(v.close).toFixed(2));
-
-    renderLineChart(symbol, labels, prices, isPositive);
-    return true;
-  } catch (error) {
-    console.error("Twelve Data endpoint exception:", error);
-    return false;
-  }
-}
-
-// Fixed Production Google Gemini Fetch Channel
-async function fetchGeminiData(symbol) {
-  try {
-    // Using production v1beta gemini-1.5-flash route mapping
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    const promptText = `Provide current price metrics and a 15-day closing history data array for the asset symbol: "${symbol}". Return a clean JSON object matching this schema exactly: {"name": "Full Corporate Name", "price": 2500.50, "change": 12.30, "percent_change": 0.49, "currency": "₹", "history": [2450, 2462, 2470, 2485, 2500.50]}. Supply exactly 15 numerical indices in the history array.`;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      })
-    });
-
-    if(!response.ok) return false; // Gracefully step down if key is unauthorized (401)
-    
-    const responseJson = await response.json();
-    const rawText = responseJson.candidates[0].content.parts[0].text.trim();
-    const marketData = JSON.parse(rawText);
-
-    document.getElementById("company").innerText = marketData.name;
-    document.getElementById("price").innerText = `${marketData.currency} ${parseFloat(marketData.price).toFixed(2)}`;
-    
-    const isPositive = marketData.change >= 0;
-    document.getElementById("change").innerHTML = 
-    `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${parseFloat(marketData.percent_change).toFixed(2)}% (${parseFloat(marketData.change).toFixed(2)}) Today</span>`;
-
-    const labels = marketData.history.map((_, idx) => `Day ${idx + 1}`);
-    renderLineChart(symbol, labels, marketData.history, isPositive);
-    return true;
-  } catch (error) {
-    console.error("Gemini pipeline fallback warning:", error);
-    return false;
-  }
-}
-
-// 🎰 Local Data Simulation Engine (Ensures your UI NEVER fails)
-function generateLocalMockData(symbol) {
-  const matched = popularStocks.find(s => s.ticker === symbol);
-  const companyName = matched ? matched.name : `${symbol} Corporation`;
-  const isIndian = matched ? matched.market === "NSE" : !["AAPL","TSLA","NVDA"].includes(symbol);
-  const currencySymbol = isIndian ? "₹" : "$";
-  
-  // Base price assignment logic
-  let basePrice = 150.00;
-  if(symbol === "RELIANCE") basePrice = 2450.00;
-  if(symbol === "TCS") basePrice = 3900.00;
-  if(symbol === "BTC") basePrice = 64000.00;
-
-  // Build random mathematical history loop
-  let history = [];
-  let currentVal = basePrice - 50;
-  for(let i=0; i<15; i++) {
-    currentVal += (Math.random() * 20) - 9.5;
-    history.push(parseFloat(currentVal.toFixed(2)));
-  }
-
-  const finalPrice = history[history.length - 1];
-  const previousPrice = history[history.length - 2];
-  const change = (finalPrice - previousPrice).toFixed(2);
-  const percentChange = ((change / previousPrice) * 100).toFixed(2);
-  const isPositive = change >= 0;
-
-  document.getElementById("company").innerText = `${companyName} (Simulated)`;
-  document.getElementById("price").innerText = `${currencySymbol} ${finalPrice.toFixed(2)}`;
-  document.getElementById("change").innerHTML = 
-  `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${change}) Today</span>`;
-
-  const labels = history.map((_, idx) => `Day ${idx + 1}`);
-  renderLineChart(symbol, labels, history, isPositive);
-}
-
-function renderLineChart(labelSymbol, labels, dataPoints, isPositive) {
-  if(chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart"), {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: labelSymbol,
-        data: dataPoints,
-        borderColor: isPositive ? '#22c55e' : '#ef4444',
-        backgroundColor: 'transparent',
-        borderWidth: 2.5,
-        tension: 0.2,
-        pointRadius: 3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
-        y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
+    // Process dates and historical elements for Chart.js
+    const labels = [];
+    const prices = [];
+    for(let i = 0; i < timestamps.length; i++) {
+      if(quotes[i] !== null) {
+        const date = new Date(timestamps[i] * 1000);
+        labels.push(date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }));
+        prices.push(quotes[i].toFixed(2));
       }
     }
-  });
+
+    // Render Chart line canvas layouts
+    if(chart) chart.destroy();
+    chart = new Chart(document.getElementById("chart"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: symbol,
+          data: prices,
+          borderColor: isPositive ? '#22c55e' : '#ef4444',
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          tension: 0.15,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error(error);
+    alert("Connection timeout fetching live financial data.");
+  }
 }
 
 window.onload = () => {
   buildWatchlist();
-  loadAssetData("RELIANCE");
+  loadAssetData("IDFCFIRSTB");
 };
 </script>
 </body>
