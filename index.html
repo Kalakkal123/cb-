@@ -44,11 +44,11 @@ small{color:#cbd5e1}
 <div class="app-container">
   <div class="main-content">
     <div class="card">
-      <h1>📈 Trading Simulation Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>Get a free key from alphavantage.co. US stocks: <b>AAPL</b>, Indian stocks use BSE codes or NSE symbols like <b>RELIANCE.BSE</b> or <b>INFY.BSE</b></small></p>
+      <h1>📈 Twelve Data Game Dashboard</h1>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>US symbols: <b>AAPL</b>, <b>TSLA</b> | Indian symbols require exchange tags: <b>RELIANCE:NSE</b>, <b>TCS:NSE</b></small></p>
       
       <div class="search-box">
-        <input id="symbol" placeholder="Enter stock code (e.g., TSLA or RELIANCE.BSE)" value="RELIANCE.BSE">
+        <input id="symbol" placeholder="Enter stock code (e.g., TSLA or RELIANCE:NSE)" value="AAPL">
         <button onclick="handleSearch()">Search Market</button>
       </div>
 
@@ -72,20 +72,20 @@ small{color:#cbd5e1}
 </div>
 
 <script>
-// ⚠️ PASTE YOUR FREE ALPHA VANTAGE API KEY HERE
-const API_KEY = "A4TET8QX2U6VNHR8"; 
+// Your active Twelve Data API Key is embedded below:
+const API_KEY = "56093876cedd49b1b26e1ba33d9bae36"; 
 let chart;
 
-// Watchlist array using Alpha Vantage compatible global notation
+// Watchlist configured specifically to match Twelve Data endpoint syntaxes
 const popularStocks = [
-  { ticker: "RELIANCE.BSE", name: "Reliance Industries", market: "BSE" },
-  { ticker: "TCS.BSE", name: "Tata Consultancy Services", market: "BSE" },
-  { ticker: "INFY.BSE", name: "Infosys Limited", market: "BSE" },
-  { ticker: "TATAMOTORS.BSE", name: "Tata Motors Limited", market: "BSE" },
   { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
   { ticker: "TSLA", name: "Tesla, Inc.", market: "NASDAQ" },
   { ticker: "NVDA", name: "NVIDIA Corporation", market: "NASDAQ" },
-  { ticker: "MSFT", name: "Microsoft Corporation", market: "NASDAQ" }
+  { ticker: "MSFT", name: "Microsoft Corporation", market: "NASDAQ" },
+  { ticker: "RELIANCE:NSE", name: "Reliance Industries", market: "NSE" },
+  { ticker: "TCS:NSE", name: "Tata Consultancy Services", market: "NSE" },
+  { ticker: "INFY:NSE", name: "Infosys Limited", market: "NSE" },
+  { ticker: "TATAMOTORS:NSE", name: "Tata Motors Limited", market: "NSE" }
 ];
 
 function buildWatchlist() {
@@ -102,7 +102,7 @@ function buildWatchlist() {
     
     item.innerHTML = `
       <div>
-        <div class="ticker">${stock.ticker.split(".")[0]}</div>
+        <div class="ticker">${stock.ticker.split(":")[0]}</div>
         <div class="name">${stock.name}</div>
       </div>
       <span class="market-tag">${stock.market}</span>
@@ -117,64 +117,67 @@ function handleSearch() {
 }
 
 async function loadStock(symbol){
- if(API_KEY === "YOUR_KEY_HERE") {
-   alert("Please get a free API key from alphavantage.co and paste it into line 54 of the code!");
-   return;
- }
-
  try {
-   // Alpha Vantage TIME_SERIES_DAILY returns clean history and metadata natively
-   const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`;
+   // 1. Fetch current price snapshot using Twelve Data Quote API
+   const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${API_KEY}`;
+   const quoteResponse = await fetch(quoteUrl);
+   const quoteData = await quoteResponse.json();
    
-   const response = await fetch(url);
-   const data = await response.json();
-   
-   if (data["Note"] || data["Information"]) {
-     alert("API Rate limit hit (Free tier allows 25 requests/day). Wait a minute and try again.");
+   if(quoteData.code === 429) {
+     alert("Rate limit reached (8 requests/min)! Wait a few seconds and try again.");
      return;
    }
-   
-   const timeSeries = data["Time Series (Daily)"];
-   if(!timeSeries) {
-     alert("Stock not found! Use standard US symbols (AAPL) or Indian BSE symbols (RELIANCE.BSE).");
+   if(quoteData.status === "error") {
+     alert("Stock not found. Check formatting (e.g., AAPL or RELIANCE:NSE).");
      return;
    }
 
-   // Extract dates and prices
-   const dates = Object.keys(timeSeries).slice(0, 30).reverse(); // Last 30 trading days
-   const prices = dates.map(date => parseFloat(timeSeries[date]["4. close"]));
-   
-   const currentPrice = prices[prices.length - 1];
-   const previousPrice = prices[prices.length - 2] || currentPrice;
-   const change = (currentPrice - previousPrice).toFixed(2);
-   const percentChange = ((change / previousPrice) * 100).toFixed(2);
-   
-   // Handle currency indicators
-   const isIndian = symbol.includes("BSE");
-   const currencySymbol = isIndian ? "₹" : "$";
+   // 2. Fetch past historical prices for Charting
+   const tsUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&outputsize=20&apikey=${API_KEY}`;
+   const tsResponse = await fetch(tsUrl);
+   const tsData = await tsResponse.json();
 
-   // Update text panels
-   const matched = popularStocks.find(s => s.ticker === symbol);
-   document.getElementById("company").innerText = matched ? `${matched.name} (${symbol.split(".")[0]})` : symbol;
-   document.getElementById("price").innerText = `${currencySymbol} ${currentPrice.toFixed(2)}`;
-   
-   const isPositive = change >= 0;
-   document.getElementById("change").innerHTML =
-   `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${change}) Since Yesterday</span>`;
+   if(!tsData.values || tsData.values.length === 0) {
+     alert("Could not load tracking data history for this specific ticker code.");
+     return;
+   }
 
-   // Process and render lines
+   // Extract Quote Values
+   const currentPrice = parseFloat(quoteData.close).toFixed(2);
+   const changeValue = parseFloat(quoteData.change).toFixed(2);
+   const percentChange = parseFloat(quoteData.percent_change).toFixed(2);
+   const currency = quoteData.currency || (symbol.includes("NSE") ? "INR" : "USD");
+   const currencySymbol = currency === "INR" ? "₹" : "$";
+
+   // Update Text UI Fields
+   document.getElementById("company").innerText = quoteData.name || symbol;
+   document.getElementById("price").innerText = `${currencySymbol} ${currentPrice}`;
+   
+   const isPositive = changeValue >= 0;
+   document.getElementById("change").innerHTML = 
+   `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${changeValue}) Today</span>`;
+
+   // Format data for Chart.js (reverse the array to show oldest to newest)
+   const history = [...tsData.values].reverse();
+   const labels = history.map(v => {
+     const date = new Date(v.datetime);
+     return date.toLocaleDateString('en-US', {day:'2-digit', month:'short'});
+   });
+   const prices = history.map(v => parseFloat(v.close).toFixed(2));
+
+   // Render the Line Graph canvas element
    if(chart) chart.destroy();
    chart = new Chart(document.getElementById("chart"), {
      type: "line",
      data: {
-       labels: dates.map(d => new Date(d).toLocaleDateString('en-US', {day:'2-digit', month:'short'})),
+       labels: labels,
        datasets: [{
-         label: symbol,
+         label: symbol.split(":")[0],
          data: prices,
          borderColor: isPositive ? '#22c55e' : '#ef4444',
          backgroundColor: 'transparent',
          borderWidth: 2.5,
-         tension: 0.15,
+         tension: 0.2,
          pointRadius: 2
        }]
      },
@@ -191,13 +194,13 @@ async function loadStock(symbol){
 
  } catch (error) {
    console.error(error);
-   alert("An error occurred while rendering the asset data layout.");
+   alert("An interface runtime tracking error occurred.");
  }
 }
 
 window.onload = () => {
   buildWatchlist();
-  loadStock("RELIANCE.BSE"); 
+  loadStock("AAPL"); // Initialize with Apple Inc. as the default boot asset
 };
 </script>
 </body>
