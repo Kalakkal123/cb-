@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Universal Trading Simulator</title>
+<title>Ultimate Multi-API Trading Game</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
@@ -62,11 +62,11 @@ canvas{background:#1e293b;border-radius:12px}
     <div class="card">
       <div>
         <div class="status-badge" id="api-status">Engine: TwelveData</div>
-        <h1 style="font-size:24px;">📈 Predict-Proof Trading Arena</h1>
+        <h1 style="font-size:24px;">📈 Global Multi-API Trading Arena</h1>
       </div>
       
       <div class="search-box" style="margin-top:15px;">
-        <input id="symbol" style="flex:1;" placeholder="Type literally anything (e.g., TSLA, CUPID, SENSEX, NIFTY, BTC, GOLD)" value="SENSEX">
+        <input id="symbol" style="flex:1;" placeholder="Search symbol or name (e.g., INFOSYS, HDFC, CUPID, AAPL, SENSEX)" value="SENSEX">
         <button onclick="handleSearch()">Search Across Networks</button>
       </div>
 
@@ -107,7 +107,7 @@ canvas{background:#1e293b;border-radius:12px}
       <div class="card">
         <h3>Live Action Activity Tracker Logs</h3>
         <div class="log-box" id="log-box">
-          [System Ready. Input fields set to dynamic tracking architecture.]
+          [System Ready. Global Symbol Normalizer engaged.]
         </div>
       </div>
     </div>
@@ -116,15 +116,14 @@ canvas{background:#1e293b;border-radius:12px}
 
   <div class="sidebar">
     <div class="sidebar-header">
-      <h3>🔥 Top Benchmark Assets</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to execute adaptive queries</p>
+      <h3>🔥 Top Diverse Watchlist</h3>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to change graph metrics</p>
     </div>
     <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
 
 <script>
-// Chained Multi-Vendor API Tokens
 const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
 const ALPHA_VANTAGE_KEY = "A4TET8QX2U6VNHR8";
 const GEMINI_API_KEY = "AQ.Ab8RN6LquC-e4QqaJhm1dGqxWZmnaHo4GDnClBfpqZ_insGSKw";
@@ -139,11 +138,21 @@ let holdings = JSON.parse(localStorage.getItem("game_holdings")) || {};
 
 const popularStocks = [
   { ticker: "SENSEX", name: "BSE SENSEX Index", market: "INDEX" },
-  { ticker: "AMD", name: "Advanced Micro Devices", market: "NASDAQ" },
-  { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
+  { ticker: "INFOSYS", name: "Infosys Limited", market: "NSE" },
+  { ticker: "HDFC", name: "HDFC Bank Limited", market: "NSE" },
   { ticker: "CUPID", name: "Cupid Limited", market: "NSE" },
-  { ticker: "RELIANCE", name: "Reliance Industries", market: "NSE" }
+  { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
+  { ticker: "AMD", name: "Advanced Micro Devices", market: "NASDAQ" }
 ];
+
+// Smart Alias Mapper translates common search terms to real exchange symbols
+const symbolAliases = {
+  "INFOSYS": "INFY",
+  "HDFC": "HDFCBANK",
+  "GOOGLE": "GOOGL"
+};
+
+const knownUSStocks = ["AAPL", "AMD", "GOOGL", "TSLA", "NVDA", "MSFT", "AMZN", "META", "INFY"];
 
 function buildWatchlist() {
   const container = document.getElementById("watchlist");
@@ -165,28 +174,30 @@ function handleSearch() {
   if(query) loadAssetData(query);
 }
 
-// Master Fallback Controller Core Orchestration Pipeline
-async function loadAssetData(symbol) {
-  // --- TIER 1: TWELVE DATA API ---
+async function loadAssetData(rawSymbol) {
+  let cleaned = rawSymbol.split(":")[0].split(".")[0].trim();
+  
+  // Apply Alias Mapping if applicable
+  if (symbolAliases[cleaned]) {
+    cleaned = symbolAliases[cleaned];
+  }
+
   updateStatusBadge("Engine: TwelveData", "#2563eb");
-  let t1 = await fetchTwelveData(symbol);
-  if (!t1 && !symbol.includes(":")) t1 = await fetchTwelveData(`${symbol}:NSE`); // Adaptive retry 
+  let t1 = await fetchTwelveData(cleaned);
+  if (!t1 && !cleaned.includes(":")) t1 = await fetchTwelveData(`${cleaned}:NSE`); 
   if (t1) return;
 
-  // --- TIER 2: ALPHA VANTAGE API ---
   updateStatusBadge("Engine: AlphaVantage", "#7c3aed");
-  let t2 = await fetchAlphaVantage(symbol);
-  if (!t2 && !symbol.includes(".")) t2 = await fetchAlphaVantage(`${symbol}.BSE`); // Adaptive retry
+  let t2 = await fetchAlphaVantage(cleaned);
+  if (!t2 && !cleaned.includes(".")) t2 = await fetchAlphaVantage(`${cleaned}.BSE`); 
   if (t2) return;
 
-  // --- TIER 3: GOOGLE GEMINI FREE INTUITIVE INTERPRETER ---
   updateStatusBadge("Engine: Google Gemini", "#16a34a");
-  let t3 = await fetchGeminiData(symbol);
+  let t3 = await fetchGeminiData(cleaned);
   if (t3) return;
 
-  // --- TIER 4: ENDLESS PUBLIC NETWORK PROXY FALLBACK ---
   updateStatusBadge("Engine: Live Backup Net", "#b45309");
-  await fetchLiveBackupNetwork(symbol);
+  await fetchLiveBackupNetwork(cleaned);
 }
 
 function updateStatusBadge(text, bgColor) {
@@ -198,15 +209,20 @@ function updateStatusBadge(text, bgColor) {
 // Tier 1 Engine: Twelve Data
 async function fetchTwelveData(symbol) {
   try {
-    const quote = await fetch(`https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${TWELVE_DATA_KEY}`).then(r=>r.json());
+    const baseSymbol = symbol.split(":")[0];
+    const isUS = knownUSStocks.includes(baseSymbol);
+    let exParam = isUS ? "" : "&exchange=NSE";
+    if (symbol === "SENSEX") return false;
+
+    const quote = await fetch(`https://api.twelvedata.com/quote?symbol=${symbol}${exParam}&apikey=${TWELVE_DATA_KEY}`).then(r=>r.json());
     if(quote.code === 429 || quote.status === "error" || !quote.close) return false;
 
-    const ts = await fetch(`https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`).then(r=>r.json());
+    const ts = await fetch(`https://api.twelvedata.com/time_series?symbol=${symbol}${exParam}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`).then(r=>r.json());
     if(!ts.values || ts.values.length === 0) return false;
 
-    currentActiveSymbol = symbol.split(":")[0].split(".")[0];
+    currentActiveSymbol = baseSymbol;
     currentActivePrice = parseFloat(quote.close);
-    currentActiveCurrency = (quote.currency === "INR" || symbol.includes("NSE")) ? "₹" : "$";
+    currentActiveCurrency = (quote.currency === "INR" || symbol.includes("NSE") || !isUS) ? "₹" : "$";
 
     updateUI(quote.name || currentActiveSymbol, currentActiveCurrency, currentActivePrice, parseFloat(quote.change), parseFloat(quote.percent_change));
     
@@ -219,16 +235,21 @@ async function fetchTwelveData(symbol) {
 // Tier 2 Engine: Alpha Vantage
 async function fetchAlphaVantage(symbol) {
   try {
-    const data = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${ALPHA_VANTAGE_KEY}`).then(r=>r.json());
+    const baseSymbol = symbol.split(".")[0];
+    const isUS = knownUSStocks.includes(baseSymbol);
+    const avSymbol = isUS ? symbol : `${symbol}.BSE`;
+    if (symbol === "SENSEX") return false;
+
+    const data = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${avSymbol}&apikey=${ALPHA_VANTAGE_KEY}`).then(r=>r.json());
     if (!data["Time Series (Daily)"]) return false;
 
     const ts = data["Time Series (Daily)"];
     const dates = Object.keys(ts).slice(0, 15).reverse();
     const prices = dates.map(d => parseFloat(ts[d]["4. close"]));
     
-    currentActiveSymbol = symbol.split(".")[0];
+    currentActiveSymbol = baseSymbol;
     currentActivePrice = prices[prices.length - 1];
-    currentActiveCurrency = symbol.includes("BSE") ? "₹" : "$";
+    currentActiveCurrency = isUS ? "$" : "₹";
 
     const change = currentActivePrice - prices[prices.length - 2];
     updateUI(currentActiveSymbol, currentActiveCurrency, currentActivePrice, change, (change/prices[prices.length-2])*100);
@@ -237,13 +258,12 @@ async function fetchAlphaVantage(symbol) {
   } catch(e) { return false; }
 }
 
-// Tier 3 Engine: Ultimate Catch-All Google Gemini AI Framework
+// Tier 3 Engine: Google Gemini 1.5 Flash
 async function fetchGeminiData(symbol) {
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    
-    // Explicit instructional mapping system allowing users to search literally anything
-    const prompt = `You are an intelligent global stock tracker parser. The user searched for: "${symbol}". Figure out what asset, country, index, crypto, or company name they meant. Calculate or provide its approximate current value, matching currency symbol, today's direction change, and a 15-day closing numerical history array. Return ONLY raw valid JSON matching this schema: {"name": "Full Asset Identity Name", "price": 150.00, "change": 1.50, "percent_change": 1.0, "currency": "₹", "history": [140, 142, 145, 150]}. Supply exactly 15 index counts in the history.`;
+    const currency = knownUSStocks.includes(symbol) ? "$" : "₹";
+    const prompt = `Provide realistic current price parameters and a 15-day close history numerical array for "${symbol}". Return ONLY a raw JSON object matching this schema exactly: {"name": "Full Asset Name", "price": 150.00, "change": 1.50, "percent_change": 1.0, "currency": "${currency}", "history": [140, 142, 145, 150]}. Provide exactly 15 history elements.`;
 
     const res = await fetch(url, {
       method: "POST",
@@ -271,13 +291,13 @@ async function fetchLiveBackupNetwork(symbol) {
 
   if (symbol === "SENSEX") { yahooSymbol = "^BSESN"; currentActiveCurrency = "Pts"; }
   else if (symbol === "NIFTY") { yahooSymbol = "^NSEI"; currentActiveCurrency = "Pts"; }
-  else if (["AAPL", "AMD", "GOOGL", "TSLA", "NVDA"].includes(symbol)) { yahooSymbol = symbol; currentActiveCurrency = "$"; }
+  else if (knownUSStocks.includes(symbol)) { yahooSymbol = symbol; currentActiveCurrency = "$"; }
   else { yahooSymbol = symbol.includes(".") ? symbol : `${symbol}.NS`; }
 
   try {
     const data = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1mo&interval=1d`)}`).then(r=>r.json()).then(w=>JSON.parse(w.contents));
     if(!data.chart || !data.chart.result) {
-      alert(`Asset context unresolvable across all 4 processing nodes: "${symbol}"`);
+      alert(`Asset context unresolvable across all 4 processing tiers: "${symbol}"`);
       return;
     }
     const res = data.chart.result[0];
@@ -306,17 +326,19 @@ function updateUI(name, curr, price, change, percent) {
   updateGameBalances();
 }
 
-// Game Core Balance Tracking Rules
+// Game Account Ledger Engine
 function executeTrade(type) {
   const qty = parseInt(document.getElementById("trade-qty").value);
-  if (isNaN(qty) || qty <= 0) { alert("Enter a valid integer quantity!"); return; }
-  if (!currentActiveSymbol || currentActivePrice <= 0) { alert("Load valid asset records before executing transactions."); return; }
+  if (isNaN(qty) || qty <= 0) { alert("Enter a valid quantity!"); return; }
+  if (!currentActiveSymbol || currentActivePrice <= 0) { alert("Load stock data first."); return; }
 
   const transactionTotal = currentActivePrice * qty;
 
   if (type === "BUY") {
-    if (cashBalance < transactionTotal) { alert("Insufficient capital assets!"); return; }
+    if (cashBalance < transactionTotal) { alert("Insufficient Cash Balance!"); return; }
     cashBalance -= transactionTotal;
+    
+    // Explicitly stores active ticker currency character ($ or ₹) natively 
     if (!holdings[currentActiveSymbol]) holdings[currentActiveSymbol] = { qty: 0, avgPrice: 0, currency: currentActiveCurrency };
     
     const oldCost = holdings[currentActiveSymbol].qty * holdings[currentActiveSymbol].avgPrice;
@@ -325,7 +347,7 @@ function executeTrade(type) {
 
     logActivity(`BOUGHT ${qty} units of ${currentActiveSymbol} at ${currentActiveCurrency}${currentActivePrice.toFixed(2)}`);
   } else if (type === "SELL") {
-    if (!holdings[currentActiveSymbol] || holdings[currentActiveSymbol].qty < qty) { alert("Holdings balance is insufficient to process trade."); return; }
+    if (!holdings[currentActiveSymbol] || holdings[currentActiveSymbol].qty < qty) { alert("You do not own enough shares."); return; }
     cashBalance += transactionTotal;
     holdings[currentActiveSymbol].qty -= qty;
     
@@ -347,7 +369,7 @@ function updateGameBalances() {
 
   const heldKeys = Object.keys(holdings);
   if (heldKeys.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">No active inventory asset positions.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">No active inventory positions.</td></tr>`;
   } else {
     heldKeys.forEach(sym => {
       const h = holdings[sym];
@@ -358,6 +380,7 @@ function updateGameBalances() {
       const pnlValue = (livePrice - h.avgPrice) * h.qty;
       const pnlClass = pnlValue >= 0 ? "green" : "red";
 
+      // FIXED: Uses the saved `h.currency` value instead of a hardcoded ₹ character!
       const row = document.createElement("tr");
       row.innerHTML = `
         <td style="font-weight:bold;">${sym}</td>
