@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Global Trading Game Dashboard</title>
+<title>AI-Powered Trading Game Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
@@ -14,7 +14,7 @@ body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:
 .sidebar-header{padding:20px;border-bottom:1px solid #334155}
 .sidebar-header h3{margin:0;font-size:18px}
 .stock-list{flex:1;overflow-y:auto;padding:10px}
-.stock-item{display:flex;justify-content:between;align-items:center;padding:12px 15px;margin-bottom:8px;background:#1e293b;border:1px solid #334155;border-radius:10px;cursor:pointer;transition:all .2s ease}
+.stock-item{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;margin-bottom:8px;background:#1e293b;border:1px solid #334155;border-radius:10px;cursor:pointer;transition:all .2s ease}
 .stock-item:hover{background:#334155;transform:translateX(-3px)}
 .stock-item .ticker{font-weight:bold;font-size:15px}
 .stock-item .name{font-size:12px;color:#cbd5e1;margin-top:2px}
@@ -33,6 +33,7 @@ h1{margin-top:0;font-size:28px}
 .chart-container{margin-top:20px;position:relative;flex:1;min-height:350px}
 canvas{background:#1e293b;border-radius:12px}
 small{color:#cbd5e1}
+.status-badge{font-size:12px;background:#334155;padding:4px 8px;border-radius:6px;float:right}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#475569;border-radius:10px}
@@ -44,12 +45,13 @@ small{color:#cbd5e1}
 <div class="app-container">
   <div class="main-content">
     <div class="card">
-      <h1>📈 Twelve Data Game Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>US symbols: <b>AAPL</b>, <b>TSLA</b> | Indian symbols require exchange tags: <b>RELIANCE:NSE</b>, <b>TCS:NSE</b></small></p>
+      <div class="status-badge" id="api-status">API: Primary</div>
+      <h1>🤖 AI Trading Dashboard</h1>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>Powered by OpenRouter <b>nex-agi/nex-n2-pro:free</b>. Search any global symbol or company name.</small></p>
       
       <div class="search-box">
-        <input id="symbol" placeholder="Enter stock code (e.g., TSLA or RELIANCE:NSE)" value="AAPL">
-        <button onclick="handleSearch()">Search Market</button>
+        <input id="symbol" placeholder="Enter stock code or company (e.g., TSLA, RELIANCE, BTC)" value="RELIANCE">
+        <button onclick="handleSearch()">Ask AI Engine</button>
       </div>
 
       <h2 id="company" style="margin-bottom:5px; color:#f8fafc;">--</h2>
@@ -64,45 +66,44 @@ small{color:#cbd5e1}
 
   <div class="sidebar">
     <div class="sidebar-header">
-      <h3>🔥 Top Watchlist Stocks</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to view real-time data</p>
+      <h3>🔥 Top Simulation Assets</h3>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to generate real-time metrics</p>
     </div>
     <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
 
 <script>
-// Your active Twelve Data API Key is embedded below:
-const API_KEY = "56093876cedd49b1b26e1ba33d9bae36"; 
+// ⚠️ PASTE YOUR OPENROUTER API KEYS HERE
+const PRIMARY_KEY = "YOUR_PRIMARY_OPENROUTER_KEY";
+const BACKUP_KEY = "YOUR_BACKUP_OPENROUTER_KEY";
+
+let activeKey = PRIMARY_KEY;
+let keyUsingBackup = false;
 let chart;
 
-// Watchlist configured specifically to match Twelve Data endpoint syntaxes
 const popularStocks = [
-  { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
-  { ticker: "TSLA", name: "Tesla, Inc.", market: "NASDAQ" },
-  { ticker: "NVDA", name: "NVIDIA Corporation", market: "NASDAQ" },
-  { ticker: "MSFT", name: "Microsoft Corporation", market: "NASDAQ" },
-  { ticker: "RELIANCE:NSE", name: "Reliance Industries", market: "NSE" },
-  { ticker: "TCS:NSE", name: "Tata Consultancy Services", market: "NSE" },
-  { ticker: "INFY:NSE", name: "Infosys Limited", market: "NSE" },
-  { ticker: "TATAMOTORS:NSE", name: "Tata Motors Limited", market: "NSE" }
+  { ticker: "RELIANCE", name: "Reliance Industries", market: "GLOBAL" },
+  { ticker: "TCS", name: "Tata Consultancy Services", market: "GLOBAL" },
+  { ticker: "AAPL", name: "Apple Inc.", market: "GLOBAL" },
+  { ticker: "TSLA", name: "Tesla Inc.", market: "GLOBAL" },
+  { ticker: "NVDA", name: "NVIDIA Corp.", market: "GLOBAL" },
+  { ticker: "BTC", name: "Bitcoin Crypto", market: "GLOBAL" }
 ];
 
 function buildWatchlist() {
   const container = document.getElementById("watchlist");
   container.innerHTML = "";
-  
   popularStocks.forEach(stock => {
     const item = document.createElement("div");
     item.className = "stock-item";
     item.onclick = () => {
       document.getElementById("symbol").value = stock.ticker;
-      loadStock(stock.ticker);
+      loadStockWithAI(stock.ticker);
     };
-    
     item.innerHTML = `
       <div>
-        <div class="ticker">${stock.ticker.split(":")[0]}</div>
+        <div class="ticker">${stock.ticker}</div>
         <div class="name">${stock.name}</div>
       </div>
       <span class="market-tag">${stock.market}</span>
@@ -113,94 +114,110 @@ function buildWatchlist() {
 
 function handleSearch() {
   const query = document.getElementById("symbol").value.trim().toUpperCase();
-  if(query) loadStock(query);
+  if(query) loadStockWithAI(query);
 }
 
-async function loadStock(symbol){
- try {
-   // 1. Fetch current price snapshot using Twelve Data Quote API
-   const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${API_KEY}`;
-   const quoteResponse = await fetch(quoteUrl);
-   const quoteData = await quoteResponse.json();
-   
-   if(quoteData.code === 429) {
-     alert("Rate limit reached (8 requests/min)! Wait a few seconds and try again.");
-     return;
-   }
-   if(quoteData.status === "error") {
-     alert("Stock not found. Check formatting (e.g., AAPL or RELIANCE:NSE).");
-     return;
-   }
+async function loadStockWithAI(symbol) {
+  let success = await fetchAIQuote(symbol, activeKey);
+  
+  // Failover Check: If primary key fails, seamlessly try the backup key
+  if (!success && !keyUsingBackup) {
+    console.warn("Primary key failed or hit limits. Switching to backup OpenRouter key...");
+    keyUsingBackup = true;
+    activeKey = BACKUP_KEY;
+    document.getElementById("api-status").innerText = "API: Backup Enabled";
+    document.getElementById("api-status").style.background = "#b45309";
+    
+    // Retry once with the backup key
+    await fetchAIQuote(symbol, activeKey);
+  }
+}
 
-   // 2. Fetch past historical prices for Charting
-   const tsUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&outputsize=20&apikey=${API_KEY}`;
-   const tsResponse = await fetch(tsUrl);
-   const tsData = await tsResponse.json();
+async function fetchAIQuote(symbol, apiKey) {
+  if (apiKey.includes("YOUR_")) {
+    alert("Please insert your active OpenRouter keys on lines 54 & 55 inside the script tag!");
+    return true; 
+  }
 
-   if(!tsData.values || tsData.values.length === 0) {
-     alert("Could not load tracking data history for this specific ticker code.");
-     return;
-   }
+  try {
+    // Structured engineering prompt forcing the model to respond ONLY with clean valid JSON
+    const systemPrompt = "You are a precise real-time market data API simulator. You must output raw JSON only, matching this structure perfectly: {\"name\":\"Company Name\",\"price\":2450.50,\"change\":1.25,\"percent_change\":0.05,\"currency\":\"₹\",\"history\":[2400,2410,2420,2435,2450.50]}. Supply 15 numerical data values in the history array representing daily close intervals. No markdown wrapping, no extra words.";
+    const userPrompt = `Provide the current status and latest 15-day history for asset ticker or company name: ${symbol}`;
 
-   // Extract Quote Values
-   const currentPrice = parseFloat(quoteData.close).toFixed(2);
-   const changeValue = parseFloat(quoteData.change).toFixed(2);
-   const percentChange = parseFloat(quoteData.percent_change).toFixed(2);
-   const currency = quoteData.currency || (symbol.includes("NSE") ? "INR" : "USD");
-   const currencySymbol = currency === "INR" ? "₹" : "$";
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "nex-agi/nex-n2-pro:free",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        temperature: 0.3
+      })
+    });
 
-   // Update Text UI Fields
-   document.getElementById("company").innerText = quoteData.name || symbol;
-   document.getElementById("price").innerText = `${currencySymbol} ${currentPrice}`;
-   
-   const isPositive = changeValue >= 0;
-   document.getElementById("change").innerHTML = 
-   `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${changeValue}) Today</span>`;
+    if (!response.ok) return false;
 
-   // Format data for Chart.js (reverse the array to show oldest to newest)
-   const history = [...tsData.values].reverse();
-   const labels = history.map(v => {
-     const date = new Date(v.datetime);
-     return date.toLocaleDateString('en-US', {day:'2-digit', month:'short'});
-   });
-   const prices = history.map(v => parseFloat(v.close).toFixed(2));
+    const resData = await response.json();
+    let rawText = resData.choices[0].message.content.trim();
+    
+    // Strip markdown JSON code block ticks if the AI accidentally sends them
+    if(rawText.startsWith("```json")) rawText = rawText.replace("```json", "").replace("```", "");
+    else if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "");
 
-   // Render the Line Graph canvas element
-   if(chart) chart.destroy();
-   chart = new Chart(document.getElementById("chart"), {
-     type: "line",
-     data: {
-       labels: labels,
-       datasets: [{
-         label: symbol.split(":")[0],
-         data: prices,
-         borderColor: isPositive ? '#22c55e' : '#ef4444',
-         backgroundColor: 'transparent',
-         borderWidth: 2.5,
-         tension: 0.2,
-         pointRadius: 2
-       }]
-     },
-     options: {
-       responsive: true,
-       maintainAspectRatio: false,
-       plugins: { legend: { display: false } },
-       scales: {
-         x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
-         y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
-       }
-     }
-   });
+    const marketData = JSON.parse(rawText.trim());
 
- } catch (error) {
-   console.error(error);
-   alert("An interface runtime tracking error occurred.");
- }
+    // Update UI elements from AI parsed JSON data
+    document.getElementById("company").innerText = marketData.name;
+    document.getElementById("price").innerText = `${marketData.currency} ${parseFloat(marketData.price).toFixed(2)}`;
+    
+    const isPositive = marketData.change >= 0;
+    document.getElementById("change").innerHTML = 
+    `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${parseFloat(marketData.percent_change).toFixed(2)}% (${parseFloat(marketData.change).toFixed(2)}) Today</span>`;
+
+    // Map dynamic arbitrary labels for history length
+    const labels = marketData.history.map((_, index) => `Day ${index + 1}`);
+
+    if(chart) chart.destroy();
+    chart = new Chart(document.getElementById("chart"), {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: symbol,
+          data: marketData.history,
+          borderColor: isPositive ? '#22c55e' : '#ef4444',
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          tension: 0.2,
+          pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
+          y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
+        }
+      }
+    });
+
+    return true; 
+  } catch (err) {
+    console.error("OpenRouter endpoint parse error:", err);
+    return false; 
+  }
 }
 
 window.onload = () => {
   buildWatchlist();
-  loadStock("AAPL"); // Initialize with Apple Inc. as the default boot asset
+  loadStockWithAI("RELIANCE");
 };
 </script>
 </body>
