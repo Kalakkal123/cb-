@@ -47,10 +47,10 @@ small{color:#cbd5e1}
     <div class="card">
       <div class="status-badge" id="api-status">Engine: 12Data</div>
       <h1>📊 Hybrid Trading Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>Retrieves live data from Twelve Data. Automatically swaps to Google Gemini if limits are hit or crypto/custom assets are queried.</small></p>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>Retrieves live data from Twelve Data. Automatically swaps to Gemini AI or Local Engine if limits/auth issues are detected.</small></p>
       
       <div class="search-box">
-        <input id="symbol" placeholder="US: AAPL | India: RELIANCE:NSE | Crypto/Custom: BTC" value="RELIANCE:NSE">
+        <input id="symbol" placeholder="US: AAPL | India: RELIANCE (Auto-maps exchange)" value="RELIANCE">
         <button onclick="handleSearch()">Search Asset</button>
       </div>
 
@@ -74,15 +74,14 @@ small{color:#cbd5e1}
 </div>
 
 <script>
-// Active integrated configuration profiles
 const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
 const GEMINI_API_KEY = "AQ.Ab8RN6LquC-e4QqaJhm1dGqxWZmnaHo4GDnClBfpqZ_insGSKw";
 
 let chart;
 
 const popularStocks = [
-  { ticker: "RELIANCE:NSE", name: "Reliance Industries", market: "NSE" },
-  { ticker: "TCS:NSE", name: "Tata Consultancy Services", market: "NSE" },
+  { ticker: "RELIANCE", name: "Reliance Industries", market: "NSE" },
+  { ticker: "TCS", name: "Tata Consultancy Services", market: "NSE" },
   { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
   { ticker: "TSLA", name: "Tesla Inc.", market: "NASDAQ" },
   { ticker: "NVDA", name: "NVIDIA Corp.", market: "NASDAQ" },
@@ -101,7 +100,7 @@ function buildWatchlist() {
     };
     item.innerHTML = `
       <div>
-        <div class="ticker">${stock.ticker.split(":")[0]}</div>
+        <div class="ticker">${stock.ticker}</div>
         <div class="name">${stock.name}</div>
       </div>
       <span class="market-tag">${stock.market}</span>
@@ -115,18 +114,24 @@ function handleSearch() {
   if(query) loadAssetData(query);
 }
 
-// Orchestrator Logic
 async function loadAssetData(symbol) {
+  // Clean symbol of any colons typed by accident
+  const cleanSymbol = symbol.split(":")[0];
+  
   updateStatusBadge("Engine: 12Data", "#2563eb");
   
-  // 1. Attempt real market fetch
-  let twelveDataSuccess = await fetchTwelveData(symbol);
+  // 1. Try real financial endpoints (with fixed URL query strings)
+  let twelveDataSuccess = await fetchTwelveData(cleanSymbol);
   if (twelveDataSuccess) return;
 
-  // 2. Automated Failover route out to Gemini AI Studio
-  console.warn("Twelve Data inactive or rate limited. Shifting flow context to Google Gemini Free Tier...");
+  // 2. Try Gemini AI Model Channel
   updateStatusBadge("Engine: Gemini AI", "#16a34a");
-  await fetchGeminiData(symbol);
+  let geminiSuccess = await fetchGeminiData(cleanSymbol);
+  if (geminiSuccess) return;
+
+  // 3. Perfect Local Failover backup engine (so your game NEVER breaks)
+  updateStatusBadge("Engine: Local Game Sim", "#6b21a8");
+  generateLocalMockData(cleanSymbol);
 }
 
 function updateStatusBadge(text, bgColor) {
@@ -135,16 +140,20 @@ function updateStatusBadge(text, bgColor) {
   badge.style.background = bgColor;
 }
 
-// Twelve Data Endpoint Wrapper
+// Fixed Twelve Data Fetch Engine
 async function fetchTwelveData(symbol) {
   try {
-    const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${TWELVE_DATA_KEY}`;
+    // Correct URL formatting: pass exchange parameter separately to prevent 404 errors
+    const isIndian = ["RELIANCE", "TCS"].includes(symbol) || popularStocks.find(s => s.ticker === symbol && s.market === "NSE");
+    const exchangeParam = isIndian ? "&exchange=NSE" : "";
+    
+    const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}${exchangeParam}&apikey=${TWELVE_DATA_KEY}`;
     const quoteResponse = await fetch(quoteUrl);
     const quoteData = await quoteResponse.json();
     
-    if(quoteData.code === 429 || quoteData.status === "error") return false;
+    if(quoteData.code === 429 || quoteData.status === "error" || !quoteData.close) return false;
 
-    const tsUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`;
+    const tsUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}${exchangeParam}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`;
     const tsResponse = await fetch(tsUrl);
     const tsData = await tsResponse.json();
 
@@ -153,8 +162,7 @@ async function fetchTwelveData(symbol) {
     const currentPrice = parseFloat(quoteData.close).toFixed(2);
     const changeValue = parseFloat(quoteData.change).toFixed(2);
     const percentChange = parseFloat(quoteData.percent_change).toFixed(2);
-    const currency = quoteData.currency || (symbol.includes("NSE") ? "INR" : "USD");
-    const currencySymbol = currency === "INR" ? "₹" : "$";
+    const currencySymbol = isIndian ? "₹" : "$";
 
     document.getElementById("company").innerText = quoteData.name || symbol;
     document.getElementById("price").innerText = `${currencySymbol} ${currentPrice}`;
@@ -170,7 +178,7 @@ async function fetchTwelveData(symbol) {
     });
     const prices = history.map(v => parseFloat(v.close).toFixed(2));
 
-    renderLineChart(symbol.split(":")[0], labels, prices, isPositive);
+    renderLineChart(symbol, labels, prices, isPositive);
     return true;
   } catch (error) {
     console.error("Twelve Data endpoint exception:", error);
@@ -178,33 +186,29 @@ async function fetchTwelveData(symbol) {
   }
 }
 
-// Fixed Google Gemini API Fetch Channel
+// Fixed Production Google Gemini Fetch Channel
 async function fetchGeminiData(symbol) {
   try {
-    // Correct URL endpoint mapping directly to the recommended stable production model path
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // Using production v1beta gemini-1.5-flash route mapping
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     
-    const promptText = `Provide the current price metrics and a sequential 15-day closing history data array for the financial asset symbol: "${symbol}". Return a clean, parsable schema following this design exactly: {"name": "Full Corporate Name", "price": 2500.50, "change": 12.30, "percent_change": 0.49, "currency": "₹", "history": [2450, 2462, 2470, 2485, 2500.50]}. Ensure there are exactly 15 historical points inside the history array.`;
+    const promptText = `Provide current price metrics and a 15-day closing history data array for the asset symbol: "${symbol}". Return a clean JSON object matching this schema exactly: {"name": "Full Corporate Name", "price": 2500.50, "change": 12.30, "percent_change": 0.49, "currency": "₹", "history": [2450, 2462, 2470, 2485, 2500.50]}. Supply exactly 15 numerical indices in the history array.`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
-        // Enforces structural JSON constraint natively to avoid string delimiter wrapping exceptions
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
+        generationConfig: { responseMimeType: "application/json" }
       })
     });
 
-    if(!response.ok) throw new Error(`Gemini connection error status: ${response.status}`);
+    if(!response.ok) return false; // Gracefully step down if key is unauthorized (401)
     
     const responseJson = await response.json();
     const rawText = responseJson.candidates[0].content.parts[0].text.trim();
     const marketData = JSON.parse(rawText);
 
-    // Bind parsed attributes onto DOM text panels
     document.getElementById("company").innerText = marketData.name;
     document.getElementById("price").innerText = `${marketData.currency} ${parseFloat(marketData.price).toFixed(2)}`;
     
@@ -213,12 +217,48 @@ async function fetchGeminiData(symbol) {
     `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${parseFloat(marketData.percent_change).toFixed(2)}% (${parseFloat(marketData.change).toFixed(2)}) Today</span>`;
 
     const labels = marketData.history.map((_, idx) => `Day ${idx + 1}`);
-    renderLineChart(symbol.split(":")[0], labels, marketData.history, isPositive);
-
+    renderLineChart(symbol, labels, marketData.history, isPositive);
+    return true;
   } catch (error) {
-    console.error("Gemini pipeline exception:", error);
-    alert("Asset mapping initialization failed on both API interfaces.");
+    console.error("Gemini pipeline fallback warning:", error);
+    return false;
   }
+}
+
+// 🎰 Local Data Simulation Engine (Ensures your UI NEVER fails)
+function generateLocalMockData(symbol) {
+  const matched = popularStocks.find(s => s.ticker === symbol);
+  const companyName = matched ? matched.name : `${symbol} Corporation`;
+  const isIndian = matched ? matched.market === "NSE" : !["AAPL","TSLA","NVDA"].includes(symbol);
+  const currencySymbol = isIndian ? "₹" : "$";
+  
+  // Base price assignment logic
+  let basePrice = 150.00;
+  if(symbol === "RELIANCE") basePrice = 2450.00;
+  if(symbol === "TCS") basePrice = 3900.00;
+  if(symbol === "BTC") basePrice = 64000.00;
+
+  // Build random mathematical history loop
+  let history = [];
+  let currentVal = basePrice - 50;
+  for(let i=0; i<15; i++) {
+    currentVal += (Math.random() * 20) - 9.5;
+    history.push(parseFloat(currentVal.toFixed(2)));
+  }
+
+  const finalPrice = history[history.length - 1];
+  const previousPrice = history[history.length - 2];
+  const change = (finalPrice - previousPrice).toFixed(2);
+  const percentChange = ((change / previousPrice) * 100).toFixed(2);
+  const isPositive = change >= 0;
+
+  document.getElementById("company").innerText = `${companyName} (Simulated)`;
+  document.getElementById("price").innerText = `${currencySymbol} ${finalPrice.toFixed(2)}`;
+  document.getElementById("change").innerHTML = 
+  `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${change}) Today</span>`;
+
+  const labels = history.map((_, idx) => `Day ${idx + 1}`);
+  renderLineChart(symbol, labels, history, isPositive);
 }
 
 function renderLineChart(labelSymbol, labels, dataPoints, isPositive) {
@@ -251,7 +291,7 @@ function renderLineChart(labelSymbol, labels, dataPoints, isPositive) {
 
 window.onload = () => {
   buildWatchlist();
-  loadAssetData("RELIANCE:NSE");
+  loadAssetData("RELIANCE");
 };
 </script>
 </body>
