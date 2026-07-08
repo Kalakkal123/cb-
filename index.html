@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ultimate Multi-API Trading Game</title>
+<title>Pro Multi-API Trading Simulator</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
@@ -18,31 +18,29 @@ body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:
 .stock-item:hover{background:#334155;transform:translateX(-3px)}
 .stock-item .ticker{font-weight:bold;font-size:15px}
 .stock-item .name{font-size:12px;color:#cbd5e1;margin-top:2px}
-.stock-item .market-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#475569;font-weight:bold}
 
 .card{background:#1e293b;padding:25px;border-radius:16px;border:1px solid #334155;display:flex;flex-direction:column}
-.search-box{display:flex;gap:10px;margin-bottom:20px}
-input,button{padding:12px;border:none;border-radius:8px;font-size:16px}
-input{background:#334155;color:#fff}
-input:focus{outline:2px solid #2563eb}
+.search-box{display:flex;gap:10px;margin-bottom:15px}
+input,button,select{padding:12px;border:none;border-radius:8px;font-size:15px;background:#334155;color:#fff}
+input:focus,select:focus{outline:2px solid #2563eb}
 button{background:#2563eb;color:#fff;cursor:pointer;font-weight:bold}
 button:hover{background:#1d4ed8}
 
-.game-controls{display:flex;gap:15px;margin-top:15px;align-items:center;background:#334155;padding:15px;border-radius:12px}
+.game-controls{display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;background:#1e293b;padding:15px;border-radius:12px;border:1px solid #475569}
 .btn-buy{background:#16a34a}.btn-buy:hover{background:#15803d}
 .btn-sell{background:#dc2626}.btn-sell:hover{background:#b91c1c}
 
 .dashboard-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{padding:10px;text-align:left;border-bottom:1px solid #334155}
-th{color:#cbd5e1;font-size:14px}
+table{width:100%;border-collapse:collapse;margin-top:5px}
+th,td{padding:10px;text-align:left;border-bottom:1px solid #334155;font-size:14px}
+th{color:#cbd5e1}
 
-.log-box{background:#0f172a;padding:12px;border-radius:8px;height:120px;overflow-y:auto;font-family:monospace;font-size:13px;color:#22c55e}
+.log-box{background:#0f172a;padding:12px;border-radius:8px;height:140px;overflow-y:auto;font-family:monospace;font-size:13px;color:#22c55e;white-space:pre-line}
 
-h1,h2{margin:0}
-#price{font-size:38px;font-weight:bold;margin-top:10px}
+h1,h2,h3{margin:0}
+#price{font-size:38px;font-weight:bold;margin-top:5px}
 .green{color:#22c55e}.red{color:#ef4444}
-.chart-container{margin-top:15px;position:relative;height:280px}
+.chart-container{margin-top:15px;position:relative;height:240px}
 canvas{background:#1e293b;border-radius:12px}
 .status-badge{font-size:12px;background:#2563eb;padding:4px 10px;border-radius:6px;float:right;font-weight:bold}
 ::-webkit-scrollbar{width:6px}
@@ -54,23 +52,21 @@ canvas{background:#1e293b;border-radius:12px}
 <div class="app-container">
   <div class="main-content">
     
-    <div class="card" style="padding:15px 25px; flex-direction:row; justify-content:space-between; align-items:center;">
-      <h2 style="font-size:20px; color:#38bdf8;">💰 Cash Balance: <span id="wallet-balance">₹10,00,000.00</span></h2>
-      <h2>💼 Net Portfolio Value: <span id="portfolio-value">₹0.00</span></h2>
+    <div class="dashboard-row" style="grid-template-columns: 1fr 1fr 1fr; gap:15px;">
+      <div class="card" style="padding:15px 20px;"><small>Available Cash Balance</small><h2 style="color:#22c55e; margin-top:5px;" id="wallet-balance">₹1,00,000.00</h2></div>
+      <div class="card" style="padding:15px 20px;"><small>Stock Holdings Valuation</small><h2 style="color:#38bdf8; margin-top:5px;" id="portfolio-value">₹0.00</h2></div>
+      <div class="card" style="padding:15px 20px;"><small>Total Net Account Wealth</small><h2 style="color:#e2e8f0; margin-top:5px;" id="total-net-worth">₹1,00,000.00</h2></div>
     </div>
 
     <div class="card">
-      <div>
-        <div class="status-badge" id="api-status">Engine: TwelveData</div>
-        <h1 style="font-size:24px;">📈 Global Multi-API Trading Arena</h1>
-      </div>
+      <div><div class="status-badge" id="api-status">Engine: TwelveData</div><h1 style="font-size:22px;">⚡ Pro Terminal Marketplace</h1></div>
       
       <div class="search-box" style="margin-top:15px;">
-        <input id="symbol" style="flex:1;" placeholder="Search symbol or name (e.g., INFOSYS, HDFC, CUPID, AAPL, SENSEX)" value="SENSEX">
-        <button onclick="handleSearch()">Search Across Networks</button>
+        <input id="symbol" style="flex:1;" placeholder="Search Symbol (e.g., INFOSYS, HDFC, CUPID, AAPL, SENSEX)" value="SENSEX">
+        <button onclick="handleSearch()">Fetch Asset Info</button>
       </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
         <div>
           <h2 id="company" style="color:#f8fafc;">--</h2>
           <div id="price">--</div>
@@ -78,47 +74,45 @@ canvas{background:#1e293b;border-radius:12px}
         </div>
         
         <div class="game-controls">
-          <input id="trade-qty" type="number" min="1" value="5" style="width:70px; text-align:center;">
-          <button class="btn-buy" onclick="executeTrade('BUY')">BUY</button>
-          <button class="btn-sell" onclick="executeTrade('SELL')">SELL</button>
+          <div><small>Shares Qty</small><br><input id="trade-qty" type="number" min="1" value="1" style="width:80px; margin-top:4px;"></div>
+          <div><small>Order Execution</small><br>
+            <select id="order-type" onchange="toggleTriggerField()" style="margin-top:4px;">
+              <option value="MKT">MKT (Instantly)</option>
+              <option value="LMT">LMT (Buy Lower/Sell Higher)</option>
+              <option value="SLM">SLM (Stop Loss Trigger)</option>
+            </select>
+          </div>
+          <div id="trigger-price-block" style="visibility:hidden;"><small>Trigger Price</small><br><input id="trigger-price" type="number" step="0.01" value="0" style="width:100px; margin-top:4px;"></div>
+          <div style="grid-column: span 3; display:flex; gap:10px; margin-top:5px;">
+            <button class="btn-buy" style="flex:1;" onclick="placeOrder('BUY')">Place Buy Order</button>
+            <button class="btn-sell" style="flex:1;" onclick="placeOrder('SELL')">Place Sell Order</button>
+          </div>
         </div>
       </div>
 
-      <div class="chart-container">
-        <canvas id="chart"></canvas>
-      </div>
+      <div class="chart-container"><canvas id="chart"></canvas></div>
     </div>
 
     <div class="dashboard-row">
       <div class="card">
-        <h3>Current Portfolio Positions</h3>
-        <div style="overflow-y:auto; max-height:150px;">
-          <table>
-            <thead>
-              <tr><th>Asset</th><th>Qty</th><th>Avg Buy</th><th>Current</th><th>P&L</th></tr>
-            </thead>
-            <tbody id="portfolio-table">
-              <tr><td colspan="5" style="text-align:center; color:#64748b;">No active positions held.</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <h3>Current Portfolio Positions (Valued uniformly in INR ₹)</h3>
+        <div style="overflow-y:auto; max-height:165px;"><table id="holdings-table"><thead><tr><th>Asset</th><th>Qty</th><th>Avg Buy (INR)</th><th>Current (INR)</th><th>Live P&L</th></tr></thead><tbody id="portfolio-table"><tr><td colspan="5" style="text-align:center; color:#64748b;">No active inventory holding logs located.</td></tr></tbody></table></div>
       </div>
-
       <div class="card">
-        <h3>Live Action Activity Tracker Logs</h3>
-        <div class="log-box" id="log-box">
-          [System Ready. Global Symbol Normalizer engaged.]
-        </div>
+        <h3>Pending Triggers & Limit Orders Book</h3>
+        <div style="overflow-y:auto; max-height:165px;"><table id="orders-table"><thead><tr><th>Asset</th><th>Type</th><th>Action</th><th>Qty</th><th>Trigger Target</th><th>Action</th></tr></thead><tbody id="pending-orders-table"><tr><td colspan="6" style="text-align:center; color:#64748b;">No active tracking triggers pending execution.</td></tr></tbody></table></div>
       </div>
+    </div>
+
+    <div class="card">
+      <h3>Live Operations Event Activity Logs</h3>
+      <div class="log-box" id="log-box">[System Online] Initial starting capitalization set to ₹1,00,000.00. Forex engine loaded ($1 = ₹83.50).</div>
     </div>
 
   </div>
 
   <div class="sidebar">
-    <div class="sidebar-header">
-      <h3>🔥 Top Diverse Watchlist</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to change graph metrics</p>
-    </div>
+    <div class="sidebar-header"><h3>🔥 Top Watchlist</h3><p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to instantly change active graphs</p></div>
     <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
@@ -128,13 +122,17 @@ const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
 const ALPHA_VANTAGE_KEY = "A4TET8QX2U6VNHR8";
 const GEMINI_API_KEY = "AQ.Ab8RN6LquC-e4QqaJhm1dGqxWZmnaHo4GDnClBfpqZ_insGSKw";
 
+const USD_TO_INR = 83.50; // Currency FX Conversion engine constant multiplier standard
+
 let chart;
 let currentActiveSymbol = "";
-let currentActivePrice = 0;
+let currentActivePrice = 0; // Stored natively in asset currency
 let currentActiveCurrency = "₹";
 
-let cashBalance = parseFloat(localStorage.getItem("game_cash")) || 1000000.00;
-let holdings = JSON.parse(localStorage.getItem("game_holdings")) || {};
+// State persistence blocks
+let cashBalance = parseFloat(localStorage.getItem("game_cash_v2")) || 100000.00; // Resetting initial seed balance cap to exactly 1 Lakh
+let holdings = JSON.parse(localStorage.getItem("game_holdings_v2")) || {};
+let pendingOrders = JSON.parse(localStorage.getItem("game_orders_v2")) || [];
 
 const popularStocks = [
   { ticker: "SENSEX", name: "BSE SENSEX Index", market: "INDEX" },
@@ -145,13 +143,7 @@ const popularStocks = [
   { ticker: "AMD", name: "Advanced Micro Devices", market: "NASDAQ" }
 ];
 
-// Smart Alias Mapper translates common search terms to real exchange symbols
-const symbolAliases = {
-  "INFOSYS": "INFY",
-  "HDFC": "HDFCBANK",
-  "GOOGLE": "GOOGL"
-};
-
+const symbolAliases = { "INFOSYS": "INFY", "HDFC": "HDFCBANK", "GOOGLE": "GOOGL" };
 const knownUSStocks = ["AAPL", "AMD", "GOOGL", "TSLA", "NVDA", "MSFT", "AMZN", "META", "INFY"];
 
 function buildWatchlist() {
@@ -160,10 +152,7 @@ function buildWatchlist() {
   popularStocks.forEach(stock => {
     const item = document.createElement("div");
     item.className = "stock-item";
-    item.onclick = () => {
-      document.getElementById("symbol").value = stock.ticker;
-      loadAssetData(stock.ticker);
-    };
+    item.onclick = () => { document.getElementById("symbol").value = stock.ticker; loadAssetData(stock.ticker); };
     item.innerHTML = `<div><div class="ticker">${stock.ticker}</div><div class="name">${stock.name}</div></div><span class="market-tag">${stock.market}</span>`;
     container.appendChild(item);
   });
@@ -174,30 +163,37 @@ function handleSearch() {
   if(query) loadAssetData(query);
 }
 
+function toggleTriggerField() {
+  const type = document.getElementById("order-type").value;
+  const block = document.getElementById("trigger-price-block");
+  block.style.visibility = (type === "LMT" || type === "SLM") ? "visible" : "hidden";
+  if(currentActivePrice > 0) {
+    document.getElementById("trigger-price").value = currentActivePrice.toFixed(2);
+  }
+}
+
+// Master Fallback Multi-API Orchestration Flow
 async function loadAssetData(rawSymbol) {
   let cleaned = rawSymbol.split(":")[0].split(".")[0].trim();
-  
-  // Apply Alias Mapping if applicable
-  if (symbolAliases[cleaned]) {
-    cleaned = symbolAliases[cleaned];
-  }
+  if (symbolAliases[cleaned]) cleaned = symbolAliases[cleaned];
 
   updateStatusBadge("Engine: TwelveData", "#2563eb");
   let t1 = await fetchTwelveData(cleaned);
   if (!t1 && !cleaned.includes(":")) t1 = await fetchTwelveData(`${cleaned}:NSE`); 
-  if (t1) return;
+  if (t1) { processTriggerBookCheck(); return; }
 
   updateStatusBadge("Engine: AlphaVantage", "#7c3aed");
   let t2 = await fetchAlphaVantage(cleaned);
   if (!t2 && !cleaned.includes(".")) t2 = await fetchAlphaVantage(`${cleaned}.BSE`); 
-  if (t2) return;
+  if (t2) { processTriggerBookCheck(); return; }
 
   updateStatusBadge("Engine: Google Gemini", "#16a34a");
   let t3 = await fetchGeminiData(cleaned);
-  if (t3) return;
+  if (t3) { processTriggerBookCheck(); return; }
 
   updateStatusBadge("Engine: Live Backup Net", "#b45309");
   await fetchLiveBackupNetwork(cleaned);
+  processTriggerBookCheck();
 }
 
 function updateStatusBadge(text, bgColor) {
@@ -263,15 +259,13 @@ async function fetchGeminiData(symbol) {
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     const currency = knownUSStocks.includes(symbol) ? "$" : "₹";
-    const prompt = `Provide realistic current price parameters and a 15-day close history numerical array for "${symbol}". Return ONLY a raw JSON object matching this schema exactly: {"name": "Full Asset Name", "price": 150.00, "change": 1.50, "percent_change": 1.0, "currency": "${currency}", "history": [140, 142, 145, 150]}. Provide exactly 15 history elements.`;
+    const prompt = `Provide current financial metrics for "${symbol}". Return ONLY valid JSON matching this schema: {"name": "Full Asset Name", "price": 150.00, "change": 1.50, "percent_change": 1.0, "currency": "${currency}", "history": [140, 142, 145, 150]}. Include exactly 15 historical points.`;
 
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
     }).then(r=>r.json());
-
-    if(!res.candidates || !res.candidates[0].content.parts[0].text) return false;
 
     const market = JSON.parse(res.candidates[0].content.parts[0].text.trim());
     currentActiveSymbol = symbol;
@@ -292,15 +286,12 @@ async function fetchLiveBackupNetwork(symbol) {
   if (symbol === "SENSEX") { yahooSymbol = "^BSESN"; currentActiveCurrency = "Pts"; }
   else if (symbol === "NIFTY") { yahooSymbol = "^NSEI"; currentActiveCurrency = "Pts"; }
   else if (knownUSStocks.includes(symbol)) { yahooSymbol = symbol; currentActiveCurrency = "$"; }
-  else { yahooSymbol = symbol.includes(".") ? symbol : `${symbol}.NS`; }
+  else { yahooSymbol = `${symbol}.NS`; }
 
   try {
     const data = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1mo&interval=1d`)}`).then(r=>r.json()).then(w=>JSON.parse(w.contents));
-    if(!data.chart || !data.chart.result) {
-      alert(`Asset context unresolvable across all 4 processing tiers: "${symbol}"`);
-      return;
-    }
     const res = data.chart.result[0];
+    
     currentActiveSymbol = symbol;
     currentActivePrice = res.meta.regularMarketPrice;
 
@@ -315,7 +306,7 @@ async function fetchLiveBackupNetwork(symbol) {
       }
     }
     renderLineChart(symbol, labels, prices, change >= 0);
-  } catch (error) { logActivity("Network lookup connection timed out."); }
+  } catch (error) { logActivity("Network fallback baseline connection timed out."); }
 }
 
 function updateUI(name, curr, price, change, percent) {
@@ -326,74 +317,186 @@ function updateUI(name, curr, price, change, percent) {
   updateGameBalances();
 }
 
-// Game Account Ledger Engine
-function executeTrade(type) {
+// Core Multi-Order Type Dispatcher
+function placeOrder(action) {
   const qty = parseInt(document.getElementById("trade-qty").value);
-  if (isNaN(qty) || qty <= 0) { alert("Enter a valid quantity!"); return; }
-  if (!currentActiveSymbol || currentActivePrice <= 0) { alert("Load stock data first."); return; }
+  const type = document.getElementById("order-type").value;
+  const trigPrice = parseFloat(document.getElementById("trigger-price").value);
 
-  const transactionTotal = currentActivePrice * qty;
+  if (isNaN(qty) || qty <= 0) { alert("Enter a valid order quantity!"); return; }
+  if (!currentActiveSymbol || currentActivePrice <= 0) { alert("Load stock metrics first!"); return; }
 
-  if (type === "BUY") {
-    if (cashBalance < transactionTotal) { alert("Insufficient Cash Balance!"); return; }
-    cashBalance -= transactionTotal;
+  if (type === "MKT") {
+    // Immediate market order routing
+    executeOrderLogic(currentActiveSymbol, action, qty, currentActivePrice, currentActiveCurrency);
+  } else {
+    // Queue active Limit or Stop Loss trigger conditions to state array book
+    if (isNaN(trigPrice) || trigPrice <= 0) { alert("Enter a valid trigger price!"); return; }
     
-    // Explicitly stores active ticker currency character ($ or ₹) natively 
-    if (!holdings[currentActiveSymbol]) holdings[currentActiveSymbol] = { qty: 0, avgPrice: 0, currency: currentActiveCurrency };
+    pendingOrders.push({
+      id: Date.now(),
+      symbol: currentActiveSymbol,
+      type: type, // LMT or SLM
+      action: action, // BUY or SELL
+      qty: qty,
+      targetPrice: trigPrice,
+      currency: currentActiveCurrency
+    });
     
-    const oldCost = holdings[currentActiveSymbol].qty * holdings[currentActiveSymbol].avgPrice;
-    holdings[currentActiveSymbol].qty += qty;
-    holdings[currentActiveSymbol].avgPrice = (oldCost + transactionTotal) / holdings[currentActiveSymbol].qty;
+    logActivity(`QUEUED Order Book: ${type} ${action} ${qty} shares of ${currentActiveSymbol} target parameter at ${currentActiveCurrency}${trigPrice.toFixed(2)}`);
+    localStorage.setItem("game_orders_v2", JSON.stringify(pendingOrders));
+    updateGameBalances();
+  }
+}
 
-    logActivity(`BOUGHT ${qty} units of ${currentActiveSymbol} at ${currentActiveCurrency}${currentActivePrice.toFixed(2)}`);
-  } else if (type === "SELL") {
-    if (!holdings[currentActiveSymbol] || holdings[currentActiveSymbol].qty < qty) { alert("You do not own enough shares."); return; }
-    cashBalance += transactionTotal;
-    holdings[currentActiveSymbol].qty -= qty;
-    
-    logActivity(`SOLD ${qty} units of ${currentActiveSymbol} at ${currentActiveCurrency}${currentActivePrice.toFixed(2)}`);
-    if (holdings[currentActiveSymbol].qty === 0) delete holdings[currentActiveSymbol];
+// Order Trigger Evaluation Loop Engine
+function processTriggerBookCheck() {
+  if (pendingOrders.length === 0) return;
+  let modificationsMade = false;
+
+  for (let i = pendingOrders.length - 1; i >= 0; i--) {
+    const o = pendingOrders[i];
+    if (o.symbol !== currentActiveSymbol) continue;
+
+    let conditionMet = false;
+
+    if (o.type === "LMT") {
+      // Limit Buy hits if price drops below target; Limit Sell hits if price climbs above target
+      if (o.action === "BUY" && currentActivePrice <= o.targetPrice) conditionMet = true;
+      if (o.action === "SELL" && currentActivePrice >= o.targetPrice) conditionMet = true;
+    } else if (o.type === "SLM") {
+      // Stop Loss Market Buy triggers above threshold; Stop Loss Market Sell triggers below threshold
+      if (o.action === "BUY" && currentActivePrice >= o.targetPrice) conditionMet = true;
+      if (o.action === "SELL" && currentActivePrice <= o.targetPrice) conditionMet = true;
+    }
+
+    if (conditionMet) {
+      logActivity(`TRIGGER MET: ${o.type} condition validated for ${o.symbol}. Executing conversion...`);
+      let success = executeOrderLogic(o.symbol, o.action, o.qty, currentActivePrice, o.currency);
+      if (success) {
+        pendingOrders.splice(i, 1);
+        modificationsMade = true;
+      }
+    }
   }
 
-  localStorage.setItem("game_cash", cashBalance);
-  localStorage.setItem("game_holdings", JSON.stringify(holdings));
+  if (modificationsMade) {
+    localStorage.setItem("game_orders_v2", JSON.stringify(pendingOrders));
+    updateGameBalances();
+  }
+}
+
+function cancelPendingOrder(id) {
+  pendingOrders = pendingOrders.filter(o => o.id !== id);
+  localStorage.setItem("game_orders_v2", JSON.stringify(pendingOrders));
+  logActivity("Pending order entry retracted from the book successfully.");
   updateGameBalances();
 }
 
+// Native Transaction Processing Core Accounting Engine
+function executeOrderLogic(symbol, action, qty, entryAssetPrice, assetCurrency) {
+  // FIXED FX Conversion Step: Map everything to Rupees for local ledger consistency
+  const priceInINR = (assetCurrency === "$") ? (entryAssetPrice * USD_TO_INR) : entryAssetPrice;
+  const transactionTotalINR = priceInINR * qty;
+
+  if (action === "BUY") {
+    if (cashBalance < transactionTotalINR) {
+      logActivity(`CRITICAL FAILURE: Order canceled. Insufficient Cash Balance to cover ₹${transactionTotalINR.toFixed(2)}`);
+      return false;
+    }
+    cashBalance -= transactionTotalINR;
+
+    if (!holdings[symbol]) holdings[symbol] = { qty: 0, avgPriceINR: 0, nativeCurrency: assetCurrency };
+    
+    const currentCostINR = holdings[symbol].qty * holdings[symbol].avgPriceINR;
+    holdings[symbol].qty += qty;
+    holdings[symbol].avgPriceINR = (currentCostINR + transactionTotalINR) / holdings[symbol].qty;
+
+    logActivity(`EXECUTED BUY: ${qty} units of ${symbol} at native rate ${assetCurrency}${entryAssetPrice.toFixed(2)} (Converted Total: ₹${transactionTotalINR.toFixed(2)})`);
+  } else if (action === "SELL") {
+    if (!holdings[symbol] || holdings[symbol].qty < qty) {
+      logActivity(`CRITICAL FAILURE: Sell execution rejected. Holdings balance insufficient.`);
+      return false;
+    }
+    cashBalance += transactionTotalINR;
+    holdings[symbol].qty -= qty;
+
+    logActivity(`EXECUTED SELL: ${qty} units of ${symbol} at native rate ${assetCurrency}${entryAssetPrice.toFixed(2)} (Received Cash: ₹${transactionTotalINR.toFixed(2)})`);
+    if (holdings[symbol].qty === 0) delete holdings[symbol];
+  }
+
+  localStorage.setItem("game_cash_v2", cashBalance);
+  localStorage.setItem("game_holdings_v2", JSON.stringify(holdings));
+  updateGameBalances();
+  return true;
+}
+
 function updateGameBalances() {
+  // Update Cash Box
   document.getElementById("wallet-balance").innerText = `₹ ${cashBalance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
   
-  let totalPortfolioValue = 0;
-  const tbody = document.getElementById("portfolio-table");
-  tbody.innerHTML = "";
-
+  let dynamicHoldingValueINR = 0;
+  
+  // Render Inventory Row Table
+  const pBody = document.getElementById("portfolio-table");
+  pBody.innerHTML = "";
   const heldKeys = Object.keys(holdings);
-  if (heldKeys.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">No active inventory positions.</td></tr>`;
+
+  if(heldKeys.length === 0) {
+    pBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">No active inventory positions.</td></tr>`;
   } else {
     heldKeys.forEach(sym => {
       const h = holdings[sym];
-      const livePrice = (sym === currentActiveSymbol) ? currentActivePrice : h.avgPrice; 
-      const currentVal = h.qty * livePrice;
-      totalPortfolioValue += currentVal;
+      
+      // Calculate live relative conversion parameters dynamically
+      let liveAssetPriceNative = h.avgPriceINR / (h.nativeCurrency === "$" ? USD_TO_INR : 1);
+      if (sym === currentActiveSymbol) {
+        liveAssetPriceNative = currentActivePrice;
+      }
+      const livePriceINR = (h.nativeCurrency === "$") ? (liveAssetPriceNative * USD_TO_INR) : liveAssetPriceNative;
+      
+      const currentPositionValueINR = h.qty * livePriceINR;
+      dynamicHoldingValueINR += currentPositionValueINR;
 
-      const pnlValue = (livePrice - h.avgPrice) * h.qty;
-      const pnlClass = pnlValue >= 0 ? "green" : "red";
+      const positionPnLINR = currentPositionValueINR - (h.qty * h.avgPriceINR);
+      const pnlClass = positionPnLINR >= 0 ? "green" : "red";
 
-      // FIXED: Uses the saved `h.currency` value instead of a hardcoded ₹ character!
       const row = document.createElement("tr");
       row.innerHTML = `
         <td style="font-weight:bold;">${sym}</td>
         <td>${h.qty}</td>
-        <td>${h.currency}${h.avgPrice.toFixed(2)}</td>
-        <td>${h.currency}${livePrice.toFixed(2)}</td>
-        <td class="${pnlClass}">${h.currency}${pnlValue.toFixed(2)}</td>
+        <td>₹${h.avgPriceINR.toFixed(2)}</td>
+        <td>₹${livePriceINR.toFixed(2)}</td>
+        <td class="${pnlClass}">₹${positionPnLINR.toFixed(2)}</td>
       `;
-      tbody.appendChild(row);
+      pBody.appendChild(row);
     });
   }
 
-  document.getElementById("portfolio-value").innerText = `₹ ${totalPortfolioValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+  // Render Order Book Row Table
+  const oBody = document.getElementById("pending-orders-table");
+  oBody.innerHTML = "";
+  if(pendingOrders.length === 0) {
+    oBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b;">No active tracking triggers pending execution.</td></tr>`;
+  } else {
+    pendingOrders.forEach(o => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td style="font-weight:bold;">${o.symbol}</td>
+        <td><span style="background:#475569; padding:2px 6px; border-radius:4px; font-size:11px;">${o.type}</span></td>
+        <td class="${o.action === 'BUY'?'green':'red'}">${o.action}</td>
+        <td>${o.qty}</td>
+        <td>${o.currency}${o.targetPrice.toFixed(2)}</td>
+        <td><button style="background:#dc2626; padding:4px 8px; font-size:11px;" onclick="cancelPendingOrder(${o.id})">Cancel</button></td>
+      `;
+      oBody.appendChild(row);
+    });
+  }
+
+  // Render Net Wealth Capital Box Metrics
+  const netWorthINR = cashBalance + dynamicHoldingValueINR;
+  document.getElementById("portfolio-value").innerText = `₹ ${dynamicHoldingValueINR.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+  document.getElementById("total-net-worth").innerText = `₹ ${netWorthINR.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
 }
 
 function logActivity(message) {
