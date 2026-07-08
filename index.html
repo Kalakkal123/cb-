@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Global Trading Simulator Dashboard</title>
+<title>Universal Market Simulator Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
@@ -33,10 +33,10 @@ h1{margin-top:0;font-size:28px}
 .chart-container{margin-top:20px;position:relative;flex:1;min-height:350px}
 canvas{background:#1e293b;border-radius:12px}
 small{color:#cbd5e1}
-.status-badge{font-size:12px;background:#16a34a;padding:4px 10px;border-radius:6px;float:right;font-weight:bold}
+.status-badge{font-size:12px;background:#2563eb;padding:4px 10px;border-radius:6px;float:right;font-weight:bold}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#475569;border-radius:10px}
+::-webkit-scrollbar-thumb:background:#475569;border-radius:10px}
 ::-webkit-scrollbar-thumb:hover{background:#64748b}
 </style>
 </head>
@@ -46,12 +46,12 @@ small{color:#cbd5e1}
   <div class="main-content">
     <div class="card">
       <div class="status-badge" id="api-status">Engine: Live Network</div>
-      <h1>📈 Real-Time Trading Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>No keys required. Enter US tickers directly (e.g., <b>AAPL</b>) or Indian tickers (e.g., <b>IDFCFIRSTB</b>).</small></p>
+      <h1>🌍 Universal Market Dashboard</h1>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>Search any US stock, Indian stock, or indices like <b>SENSEX</b>, <b>AMD</b>, <b>CUPID</b>, <b>AAPL</b>.</small></p>
       
       <div class="search-box">
-        <input id="symbol" placeholder="e.g., IDFCFIRSTB, RELIANCE, AAPL, TSLA" value="IDFCFIRSTB">
-        <button onclick="handleSearch()">Search Asset</button>
+        <input id="symbol" placeholder="Search code (e.g., AMD, AAPL, CUPID, SENSEX)" value="SENSEX">
+        <button onclick="handleSearch()">Search Market</button>
       </div>
 
       <h2 id="company" style="margin-bottom:5px; color:#f8fafc;">--</h2>
@@ -66,8 +66,8 @@ small{color:#cbd5e1}
 
   <div class="sidebar">
     <div class="sidebar-header">
-      <h3>🔥 Top Watchlist Assets</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to view real-time data</p>
+      <h3>🔥 Top Diverse Watchlist</h3>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to load real live charts</p>
     </div>
     <div class="stock-list" id="watchlist"></div>
   </div>
@@ -76,14 +76,14 @@ small{color:#cbd5e1}
 <script>
 let chart;
 
-// Pre-defined watchlist matching our search syntax
+// Watchlist array grouping all asset types together
 const popularStocks = [
-  { ticker: "IDFCFIRSTB", name: "IDFC First Bank Ltd", market: "NSE" },
-  { ticker: "RELIANCE", name: "Reliance Industries", market: "NSE" },
-  { ticker: "TCS", name: "Tata Consultancy Services", market: "NSE" },
+  { ticker: "SENSEX", name: "BSE SENSEX Index", market: "INDEX" },
+  { ticker: "AMD", name: "Advanced Micro Devices", market: "NASDAQ" },
   { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
-  { ticker: "TSLA", name: "Tesla Inc.", market: "NASDAQ" },
-  { ticker: "NVDA", name: "NVIDIA Corp.", market: "NASDAQ" }
+  { ticker: "GOOGL", name: "Alphabet Inc.", market: "NASDAQ" },
+  { ticker: "CUPID", name: "Cupid Limited", market: "NSE" },
+  { ticker: "RELIANCE", name: "Reliance Industries", market: "NSE" }
 ];
 
 function buildWatchlist() {
@@ -113,24 +113,36 @@ function handleSearch() {
 }
 
 async function loadAssetData(symbol) {
-  // Determine if it's an Indian stock or US stock based on common tech names
-  const isUS = ["AAPL", "TSLA", "NVDA", "MSFT", "AMZN", "GOOGL"].includes(symbol);
-  const finalTicker = isUS ? symbol : `${symbol}.NS`;
-  const currencySymbol = isUS ? "$" : "₹";
+  let finalTicker = symbol;
+  let currencySymbol = "₹";
+
+  // Smart symbol router mapping
+  if (symbol === "SENSEX") {
+    finalTicker = "^BSESN"; // Map to the official Yahoo Ticker for BSE Sensex
+    currencySymbol = "Pts";
+  } else if (["AMD", "AAPL", "GOOGL", "TSLA", "NVDA", "MSFT"].includes(symbol)) {
+    finalTicker = symbol; // Clean US tech tickers
+    currencySymbol = "$";
+  } else {
+    // Default fallback routing for Indian stocks (CUPID, RELIANCE, etc.)
+    if (!symbol.endsWith(".NS") && !symbol.endsWith(".BO")) {
+      finalTicker = `${symbol}.NS`;
+    }
+    currencySymbol = "₹";
+  }
 
   try {
-    // Free public bypass endpoint using Yahoo's historical tracker via AllOrigins CORS proxy
     const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${finalTicker}?range=1mo&interval=1d`;
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
     
     const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("Network issue");
+    if (!response.ok) throw new Error("Network issues");
     
     const wrapper = await response.json();
     const data = JSON.parse(wrapper.contents);
     
     if(!data.chart || !data.chart.result) {
-      alert("Stock ticker not recognized. Ensure spelling matches exactly.");
+      alert(`Asset "${symbol}" not recognized. For Indian stocks try standard symbols like CUPID or TCS.`);
       return;
     }
 
@@ -140,25 +152,25 @@ async function loadAssetData(symbol) {
     const quotes = result.indicators.quote[0].close;
 
     if(!timestamps || !quotes) {
-      alert("Trading history unavailable for this symbol.");
+      alert("Trading history arrays are empty for this ticker selection.");
       return;
     }
 
-    // Extract core parameters
+    // Capture quote statistics
     const currentPrice = meta.regularMarketPrice.toFixed(2);
     const previousClose = meta.previousClose;
     const change = (currentPrice - previousClose).toFixed(2);
     const percentChange = ((change / previousClose) * 100).toFixed(2);
     const isPositive = change >= 0;
 
-    // Display values to UI
+    // Inject parameters safely into DOM container elements
     const matched = popularStocks.find(s => s.ticker === symbol);
-    document.getElementById("company").innerText = matched ? matched.name : `${symbol} Equity`;
-    document.getElementById("price").innerText = `${currencySymbol} ${currentPrice}`;
+    document.getElementById("company").innerText = matched ? matched.name : `${symbol} Asset Profile`;
+    document.getElementById("price").innerText = currencySymbol === "Pts" ? `${currentPrice} Pts` : `${currencySymbol} ${currentPrice}`;
     document.getElementById("change").innerHTML = 
     `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${change}) Today</span>`;
 
-    // Process dates and historical elements for Chart.js
+    // Process dates cleanly for line graph axes
     const labels = [];
     const prices = [];
     for(let i = 0; i < timestamps.length; i++) {
@@ -169,7 +181,7 @@ async function loadAssetData(symbol) {
       }
     }
 
-    // Render Chart line canvas layouts
+    // Draw lines onto Chart.js element configurations
     if(chart) chart.destroy();
     chart = new Chart(document.getElementById("chart"), {
       type: "line",
@@ -198,13 +210,13 @@ async function loadAssetData(symbol) {
 
   } catch (error) {
     console.error(error);
-    alert("Connection timeout fetching live financial data.");
+    alert("Connection error tracking live data profile.");
   }
 }
 
 window.onload = () => {
   buildWatchlist();
-  loadAssetData("IDFCFIRSTB");
+  loadAssetData("SENSEX"); // Dynamic landing defaults directly to Sensex Index data!
 };
 </script>
 </body>
