@@ -59,11 +59,11 @@ canvas{background:#1e293b;border-radius:12px}
     </div>
 
     <div class="card">
-      <div><div class="status-badge" id="api-status">Engine: TwelveData</div><h1 style="font-size:22px;">⚡ Pro Terminal Marketplace</h1></div>
+      <div><div class="status-badge" id="api-status">Engine: Ready</div><h1 style="font-size:22px;">⚡ Pro Terminal Marketplace</h1></div>
       
       <div class="search-box" style="margin-top:15px;">
-        <input id="symbol" style="flex:1;" placeholder="Type anything: INTC, IDFCFIRSTB, CUPID, INFOSYS, NIFTY" value="INTC">
-        <button onclick="handleSearch()">Fetch Asset Info</button>
+        <input id="symbol" style="flex:1;" placeholder="Search any asset globally (e.g., WIPRO, TATASTEEL, INTC, HDFC, SENSEX)" value="WIPRO">
+        <button onclick="handleSearch()">Search Market</button>
       </div>
 
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
@@ -84,8 +84,8 @@ canvas{background:#1e293b;border-radius:12px}
           </div>
           <div id="trigger-price-block" style="visibility:hidden;"><small>Trigger Price</small><br><input id="trigger-price" type="number" step="0.01" value="0" style="width:100px; margin-top:4px;"></div>
           <div style="grid-column: span 3; display:flex; gap:10px; margin-top:5px;">
-            <button class="btn-buy" style="flex:1;" onclick="placeOrder('BUY')">Place Buy Order</button>
-            <button class="btn-sell" style="flex:1;" onclick="placeOrder('SELL')">Place Sell Order</button>
+            <button class="btn-buy" style="flex:1;" onclick="placeOrder('BUY')">BUY</button>
+            <button class="btn-sell" style="flex:1;" onclick="placeOrder('SELL')">SELL</button>
           </div>
         </div>
       </div>
@@ -96,17 +96,17 @@ canvas{background:#1e293b;border-radius:12px}
     <div class="dashboard-row">
       <div class="card">
         <h3>Current Portfolio Positions (Valued in INR ₹)</h3>
-        <div style="overflow-y:auto; max-height:165px;"><table id="holdings-table"><thead><tr><th>Asset</th><th>Qty</th><th>Avg Buy (INR)</th><th>Current (INR)</th><th>Live P&L</th></tr></thead><tbody id="portfolio-table"><tr><td colspan="5" style="text-align:center; color:#64748b;">No active positions.</td></tr></tbody></table></div>
+        <div style="overflow-y:auto; max-height:165px;"><table id="holdings-table"><thead><tr><th>Asset</th><th>Qty</th><th>Avg Buy</th><th>Current</th><th>Live P&L</th></tr></thead><tbody id="portfolio-table"><tr><td colspan="5" style="text-align:center; color:#64748b;">No active positions.</td></tr></tbody></table></div>
       </div>
       <div class="card">
         <h3>Pending Triggers & Limit Orders Book</h3>
-        <div style="overflow-y:auto; max-height:165px;"><table id="orders-table"><thead><tr><th>Asset</th><th>Type</th><th>Action</th><th>Qty</th><th>Trigger Target</th><th>Action</th></tr></thead><tbody id="pending-orders-table"><tr><td colspan="6" style="text-align:center; color:#64748b;">No active tracking triggers pending.</td></tr></tbody></table></div>
+        <div style="overflow-y:auto; max-height:165px;"><table id="orders-table"><thead><tr><th>Asset</th><th>Type</th><th>Action</th><th>Qty</th><th>Target</th><th>Action</th></tr></thead><tbody id="pending-orders-table"><tr><td colspan="6" style="text-align:center; color:#64748b;">No active tracking triggers pending.</td></tr></tbody></table></div>
       </div>
     </div>
 
     <div class="card">
       <h3>Live Operations Event Activity Logs</h3>
-      <div class="log-box" id="log-box">[System Online] Forex engine enabled ($1 = ₹83.50). Predict-proof routing active.</div>
+      <div class="log-box" id="log-box">[System Online] Auto-Fallback architecture enabled. Zero-crash mode active.</div>
     </div>
 
   </div>
@@ -118,31 +118,36 @@ canvas{background:#1e293b;border-radius:12px}
 </div>
 
 <script>
+// --- CONFIGURATION ---
 const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
 const ALPHA_VANTAGE_KEY = "A4TET8QX2U6VNHR8";
-const GEMINI_API_KEY = "AQ.Ab8RN6IaCcIOlOqIRvbhHbSOU5rRcxOnfog0Tc2LYR7qseHdCQ";
+// You can leave this blank if you don't have a key, the system will bypass it safely!
+const GEMINI_API_KEY = "YOUR_GEMINI_KEY_HERE"; 
 
 const USD_TO_INR = 83.50; 
 
+// --- STATE ---
 let chart;
 let currentActiveSymbol = "";
 let currentActivePrice = 0; 
 let currentActiveCurrency = "₹";
 
-let cashBalance = parseFloat(localStorage.getItem("game_cash_v3")) || 100000.00; 
-let holdings = JSON.parse(localStorage.getItem("game_holdings_v3")) || {};
-let pendingOrders = JSON.parse(localStorage.getItem("game_orders_v3")) || [];
+let cashBalance = parseFloat(localStorage.getItem("game_cash_final")) || 100000.00; 
+let holdings = JSON.parse(localStorage.getItem("game_holdings_final")) || {};
+let pendingOrders = JSON.parse(localStorage.getItem("game_orders_final")) || [];
 
 const popularStocks = [
   { ticker: "SENSEX", name: "BSE SENSEX Index", market: "INDEX" },
+  { ticker: "WIPRO", name: "Wipro Limited", market: "NSE" },
+  { ticker: "TATASTEEL", name: "Tata Steel Limited", market: "NSE" },
   { ticker: "INTC", name: "Intel Corporation", market: "NASDAQ" },
-  { ticker: "IDFCFIRSTB", name: "IDFC First Bank Ltd", market: "NSE" },
-  { ticker: "CUPID", name: "Cupid Limited", market: "NSE" },
-  { ticker: "INFY", name: "Infosys Limited", market: "NSE" }
+  { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" }
 ];
 
 const symbolAliases = { "INFOSYS": "INFY", "HDFC": "HDFCBANK", "GOOGLE": "GOOGL", "INTEL": "INTC", "IDFC": "IDFCFIRSTB" };
+const knownUSStocks = ["AAPL", "AMD", "GOOGL", "TSLA", "NVDA", "MSFT", "AMZN", "META", "INTC", "NFLX"];
 
+// --- INITIALIZATION ---
 function buildWatchlist() {
   const container = document.getElementById("watchlist");
   container.innerHTML = "";
@@ -153,6 +158,7 @@ function buildWatchlist() {
     item.innerHTML = `<div><div class="ticker">${stock.ticker}</div><div class="name">${stock.name}</div></div><span class="market-tag">${stock.market}</span>`;
     container.appendChild(item);
   });
+  updateGameBalances();
 }
 
 function handleSearch() {
@@ -164,36 +170,7 @@ function toggleTriggerField() {
   const type = document.getElementById("order-type").value;
   const block = document.getElementById("trigger-price-block");
   block.style.visibility = (type === "LMT" || type === "SLM") ? "visible" : "hidden";
-  if(currentActivePrice > 0) {
-    document.getElementById("trigger-price").value = currentActivePrice.toFixed(2);
-  }
-}
-
-// Master Orchestration Controller Flow
-async function loadAssetData(rawSymbol) {
-  let cleaned = rawSymbol.split(":")[0].split(".")[0].trim();
-  if (symbolAliases[cleaned]) cleaned = symbolAliases[cleaned];
-
-  // Dynamic Market Router: Shorter length codes are natively guessed as US Equities
-  const assumeUS = cleaned.length <= 4 && !["TCS", "HDFC", "IDFC", "SAIL", "GAIL"].includes(cleaned);
-
-  updateStatusBadge("Engine: TwelveData", "#2563eb");
-  let t1 = await fetchTwelveData(cleaned, assumeUS);
-  if (!t1) t1 = await fetchTwelveData(cleaned, !assumeUS); // Cross-check alternative market parameter
-  if (t1) { processTriggerBookCheck(); return; }
-
-  updateStatusBadge("Engine: AlphaVantage", "#7c3aed");
-  let t2 = await fetchAlphaVantage(cleaned, assumeUS);
-  if (t2) { processTriggerBookCheck(); return; }
-
-  // Ultimate Catch-All Interpreter
-  updateStatusBadge("Engine: Google Gemini AI", "#16a34a");
-  let t3 = await fetchGeminiData(cleaned);
-  if (t3) { processTriggerBookCheck(); return; }
-
-  updateStatusBadge("Engine: Live Backup Net", "#b45309");
-  await fetchLiveBackupNetwork(cleaned, assumeUS);
-  processTriggerBookCheck();
+  if(currentActivePrice > 0) document.getElementById("trigger-price").value = currentActivePrice.toFixed(2);
 }
 
 function updateStatusBadge(text, bgColor) {
@@ -202,302 +179,248 @@ function updateStatusBadge(text, bgColor) {
   badge.style.background = bgColor;
 }
 
-// Tier 1 Engine: Twelve Data API
+// --- MASTER DATA ORCHESTRATOR ---
+async function loadAssetData(rawSymbol) {
+  let cleaned = rawSymbol.split(":")[0].split(".")[0].trim().toUpperCase();
+  if (symbolAliases[cleaned]) cleaned = symbolAliases[cleaned];
+
+  const assumeUS = knownUSStocks.includes(cleaned) || (cleaned.length <= 4 && !["TCS","ITC","SBI","SAIL"].includes(cleaned));
+
+  // 1. Primary: Twelve Data
+  updateStatusBadge("Engine: TwelveData", "#2563eb");
+  if (await fetchTwelveData(cleaned, assumeUS)) { processTriggerBookCheck(); return; }
+
+  // 2. Secondary: Alpha Vantage
+  updateStatusBadge("Engine: AlphaVantage", "#7c3aed");
+  if (await fetchAlphaVantage(cleaned, assumeUS)) { processTriggerBookCheck(); return; }
+
+  // 3. Network Proxy
+  updateStatusBadge("Engine: Proxy Network", "#059669");
+  if (await fetchLiveBackupNetwork(cleaned, assumeUS)) { processTriggerBookCheck(); return; }
+
+  // 4. AI Generator (Only if key provided)
+  if (GEMINI_API_KEY && GEMINI_API_KEY !== "YOUR_GEMINI_KEY_HERE" && !GEMINI_API_KEY.includes("PASTE")) {
+    updateStatusBadge("Engine: Gemini AI", "#16a34a");
+    if (await fetchGeminiData(cleaned)) { processTriggerBookCheck(); return; }
+  }
+
+  // 5. Ultimate Fallback: Never Fail Local Simulator
+  updateStatusBadge("Engine: Local Game Sim", "#b45309");
+  generateSmartLocalData(cleaned, assumeUS);
+  processTriggerBookCheck();
+}
+
+// --- DATA FETCHERS ---
 async function fetchTwelveData(symbol, isUS) {
   try {
-    let exParam = isUS ? "" : "&exchange=NSE";
     if (symbol === "SENSEX" || symbol === "NIFTY") return false;
-
+    let exParam = isUS ? "" : "&exchange=NSE";
     const quote = await fetch(`https://api.twelvedata.com/quote?symbol=${symbol}${exParam}&apikey=${TWELVE_DATA_KEY}`).then(r=>r.json());
     if(quote.code === 429 || quote.status === "error" || !quote.close) return false;
-
     const ts = await fetch(`https://api.twelvedata.com/time_series?symbol=${symbol}${exParam}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`).then(r=>r.json());
     if(!ts.values || ts.values.length === 0) return false;
-
-    currentActiveSymbol = symbol;
-    currentActivePrice = parseFloat(quote.close);
-    currentActiveCurrency = isUS ? "$" : "₹";
-
-    updateUI(quote.name || currentActiveSymbol, currentActiveCurrency, currentActivePrice, parseFloat(quote.change), parseFloat(quote.percent_change));
-    
-    const history = [...ts.values].reverse();
-    renderLineChart(currentActiveSymbol, history.map(v => new Date(v.datetime).toLocaleDateString('en-US', {day:'2-digit', month:'short'})), history.map(v => parseFloat(v.close)), parseFloat(quote.change) >= 0);
-    return true;
+    return renderSuccess(symbol, isUS ? "$" : "₹", parseFloat(quote.close), parseFloat(quote.change), parseFloat(quote.percent_change), [...ts.values].reverse().map(v=>parseFloat(v.close)), [...ts.values].reverse().map(v=>new Date(v.datetime).toLocaleDateString('en-US',{day:'2-digit',month:'short'})), quote.name);
   } catch (e) { return false; }
 }
 
-// Tier 2 Engine: Alpha Vantage API
 async function fetchAlphaVantage(symbol, isUS) {
   try {
-    const avSymbol = isUS ? symbol : `${symbol}.BSE`;
     if (symbol === "SENSEX" || symbol === "NIFTY") return false;
-
+    const avSymbol = isUS ? symbol : `${symbol}.BSE`;
     const data = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${avSymbol}&apikey=${ALPHA_VANTAGE_KEY}`).then(r=>r.json());
     if (!data["Time Series (Daily)"]) return false;
-
     const ts = data["Time Series (Daily)"];
     const dates = Object.keys(ts).slice(0, 15).reverse();
     const prices = dates.map(d => parseFloat(ts[d]["4. close"]));
-    
-    currentActiveSymbol = symbol;
-    currentActivePrice = prices[prices.length - 1];
-    currentActiveCurrency = isUS ? "$" : "₹";
-
-    const change = currentActivePrice - prices[prices.length - 2];
-    updateUI(currentActiveSymbol, currentActiveCurrency, currentActivePrice, change, (change/prices[prices.length-2])*100);
-    renderLineChart(currentActiveSymbol, dates.map(d => new Date(d).toLocaleDateString('en-US', {day:'2-digit', month:'short'})), prices, change >= 0);
-    return true;
-  } catch(e) { return false; }
-}
-
-// Tier 3 Engine: Gemini Free AI Interpreter
-async function fetchGeminiData(symbol) {
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    const prompt = `You are an asset tracker router. The user searched: "${symbol}". Detect the correct company identity, current true price value, currency ticker token character ($ or ₹), and a realistic 15-day close data history array. Return ONLY raw valid JSON matching this schema exactly: {"name": "Full Clean Asset Identity", "price": 120.00, "change": 1.50, "percent_change": 1.25, "currency": "₹", "history": [110, 112, 115, 120]}. Provide exactly 15 index array units.`;
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
-    }).then(r=>r.json());
-
-    const market = JSON.parse(res.candidates[0].content.parts[0].text.trim());
-    currentActiveSymbol = symbol;
-    currentActivePrice = market.price;
-    currentActiveCurrency = market.currency;
-
-    updateUI(market.name, market.currency, market.price, market.change, market.percent_change);
-    renderLineChart(symbol, market.history.map((_, i) => `Day ${i+1}`), market.history, market.change >= 0);
-    return true;
+    const current = prices[prices.length-1];
+    const prev = prices[prices.length-2];
+    return renderSuccess(symbol, isUS ? "$" : "₹", current, current-prev, ((current-prev)/prev)*100, prices, dates.map(d=>new Date(d).toLocaleDateString('en-US',{day:'2-digit',month:'short'})));
   } catch (e) { return false; }
 }
 
-// Tier 4 Engine: Public Endpoint Baseline Proxy Network
 async function fetchLiveBackupNetwork(symbol, isUS) {
-  let yahooSymbol = symbol;
-  currentActiveCurrency = isUS ? "$" : "₹";
-
-  if (symbol === "SENSEX") { yahooSymbol = "^BSESN"; currentActiveCurrency = "Pts"; }
-  else if (symbol === "NIFTY") { yahooSymbol = "^NSEI"; currentActiveCurrency = "Pts"; }
-  else { yahooSymbol = isUS ? symbol : `${symbol}.NS`; }
-
   try {
-    const data = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1mo&interval=1d`)}`).then(r=>r.json()).then(w=>JSON.parse(w.contents));
-    const res = data.chart.result[0];
+    let yahooSymbol = symbol === "SENSEX" ? "^BSESN" : (symbol === "NIFTY" ? "^NSEI" : (isUS ? symbol : `${symbol}.NS`));
+    let curr = symbol === "SENSEX" || symbol === "NIFTY" ? "Pts" : (isUS ? "$" : "₹");
+    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1mo&interval=1d`;
     
-    currentActiveSymbol = symbol;
-    currentActivePrice = res.meta.regularMarketPrice;
+    let data;
+    try {
+      const res1 = await fetch(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`).then(r=>r.json());
+      if (res1.chart && res1.chart.result) data = res1.chart.result[0];
+    } catch(err1) {
+      const res2 = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}&cb=${Date.now()}`).then(r=>r.json());
+      if (res2.contents) data = JSON.parse(res2.contents).chart.result[0];
+    }
 
-    const change = currentActivePrice - res.meta.previousClose;
-    updateUI(symbol, currentActiveCurrency, currentActivePrice, change, (change / res.meta.previousClose) * 100);
-
+    if(!data) return false;
+    const current = data.meta.regularMarketPrice;
+    const prev = data.meta.previousClose;
     const prices = [], labels = [];
-    for(let i = 0; i < res.timestamp.length; i++) {
-      if(res.indicators.quote[0].close[i] !== null) {
-        labels.push(new Date(res.timestamp[i] * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }));
-        prices.push(res.indicators.quote[0].close[i]);
+    for(let i=0; i<data.timestamp.length; i++) {
+      if(data.indicators.quote[0].close[i] !== null) {
+        labels.push(new Date(data.timestamp[i]*1000).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}));
+        prices.push(data.indicators.quote[0].close[i]);
       }
     }
-    renderLineChart(symbol, labels, prices, change >= 0);
-  } catch (error) { logActivity("Baseline network channel tracking timeout."); }
+    return renderSuccess(symbol, curr, current, current-prev, ((current-prev)/prev)*100, prices, labels);
+  } catch (e) { return false; }
 }
 
-function updateUI(name, curr, price, change, percent) {
-  document.getElementById("company").innerText = name;
-  document.getElementById("price").innerText = curr === "Pts" ? `${price.toFixed(2)} Pts` : `${curr} ${price.toFixed(2)}`;
-  const pos = change >= 0;
-  document.getElementById("change").innerHTML = `<span class="${pos ? 'green' : 'red'}">${pos ? '▲' : '▼'} ${percent.toFixed(2)}% (${change.toFixed(2)}) Today</span>`;
+async function fetchGeminiData(symbol) {
+  try {
+    const prompt = `Return ONLY JSON for financial asset "${symbol}": {"name": "Name", "price": 100.0, "change": 1.0, "percent_change": 1.0, "currency": "₹", "history": [90,92,95,100]}. Provide 15 history array numbers.`;
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
+    }).then(r=>r.json());
+    if(!res.candidates) return false;
+    const m = JSON.parse(res.candidates[0].content.parts[0].text.trim());
+    return renderSuccess(symbol, m.currency, m.price, m.change, m.percent_change, m.history, m.history.map((_,i)=>`Day ${i+1}`), m.name);
+  } catch(e) { return false; }
+}
+
+function generateSmartLocalData(symbol, isUS) {
+  let seedPrice = 150.00;
+  if (symbol.includes("TATA")) seedPrice = 800.00;
+  if (symbol === "WIPRO") seedPrice = 460.00;
+  if (symbol === "SENSEX") seedPrice = 79000.00;
+
+  let history = [], currentVal = seedPrice - (seedPrice * 0.05);
+  for (let i = 0; i < 15; i++) {
+    currentVal += (Math.random() * (seedPrice * 0.04)) - (seedPrice * 0.018);
+    history.push(parseFloat(currentVal.toFixed(2)));
+  }
+  const current = history[14], prev = history[13];
+  renderSuccess(symbol, symbol === "SENSEX" ? "Pts" : (isUS ? "$" : "₹"), current, current - prev, ((current - prev) / prev) * 100, history, history.map((_,i)=>`Day ${i+1}`), `${symbol} (Simulated)`);
+}
+
+// --- RENDER & GAME LOGIC ---
+function renderSuccess(symbol, curr, price, change, percent, history, labels, nameOverride = null) {
+  currentActiveSymbol = symbol; currentActiveCurrency = curr; currentActivePrice = price;
+  
+  document.getElementById("company").innerText = nameOverride || `${symbol} Asset`;
+  document.getElementById("price").innerText = curr === "Pts" ? `${price.toFixed(2)} Pts` : `${curr}${price.toFixed(2)}`;
+  document.getElementById("change").innerHTML = `<span class="${change >= 0 ? 'green' : 'red'}">${change >= 0 ? '▲' : '▼'} ${percent.toFixed(2)}% (${change.toFixed(2)}) Today</span>`;
+  
+  if(chart) chart.destroy();
+  chart = new Chart(document.getElementById("chart"), {
+    type: "line",
+    data: { labels: labels, datasets: [{ label: symbol, data: history, borderColor: change >= 0 ? '#22c55e' : '#ef4444', backgroundColor: 'transparent', borderWidth: 2.5, tension: 0.15, pointRadius: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }, y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } } } }
+  });
   updateGameBalances();
+  return true;
 }
 
-// Core Ledger Ordering Trigger Checks
 function placeOrder(action) {
   const qty = parseInt(document.getElementById("trade-qty").value);
   const type = document.getElementById("order-type").value;
   const trigPrice = parseFloat(document.getElementById("trigger-price").value);
 
-  if (isNaN(qty) || qty <= 0) { alert("Enter a valid transaction quantity!"); return; }
-  if (!currentActiveSymbol || currentActivePrice <= 0) { alert("Load stock data metrics first!"); return; }
+  if (isNaN(qty) || qty <= 0) return alert("Enter valid quantity!");
+  if (!currentActiveSymbol || currentActivePrice <= 0) return alert("Load data first!");
 
   if (type === "MKT") {
     executeOrderLogic(currentActiveSymbol, action, qty, currentActivePrice, currentActiveCurrency);
   } else {
-    if (isNaN(trigPrice) || trigPrice <= 0) { alert("Enter a valid numerical trigger boundary price!"); return; }
-    
-    pendingOrders.push({
-      id: Date.now(),
-      symbol: currentActiveSymbol,
-      type: type, 
-      action: action, 
-      qty: qty,
-      targetPrice: trigPrice,
-      currency: currentActiveCurrency
-    });
-    
-    logActivity(`QUEUED Entry: ${type} ${action} ${qty} units of ${currentActiveSymbol} set at ${currentActiveCurrency}${trigPrice.toFixed(2)}`);
-    localStorage.setItem("game_orders_v3", JSON.stringify(pendingOrders));
+    if (isNaN(trigPrice) || trigPrice <= 0) return alert("Enter valid trigger price!");
+    pendingOrders.push({ id: Date.now(), symbol: currentActiveSymbol, type: type, action: action, qty: qty, targetPrice: trigPrice, currency: currentActiveCurrency });
+    logActivity(`QUEUED: ${type} ${action} ${qty}x ${currentActiveSymbol} @ ${currentActiveCurrency}${trigPrice.toFixed(2)}`);
+    localStorage.setItem("game_orders_final", JSON.stringify(pendingOrders));
     updateGameBalances();
   }
 }
 
 function processTriggerBookCheck() {
   if (pendingOrders.length === 0) return;
-  let modificationsMade = false;
-
+  let changed = false;
   for (let i = pendingOrders.length - 1; i >= 0; i--) {
     const o = pendingOrders[i];
     if (o.symbol !== currentActiveSymbol) continue;
-
-    let conditionMet = false;
+    let met = false;
     if (o.type === "LMT") {
-      if (o.action === "BUY" && currentActivePrice <= o.targetPrice) conditionMet = true;
-      if (o.action === "SELL" && currentActivePrice >= o.targetPrice) conditionMet = true;
+      if (o.action === "BUY" && currentActivePrice <= o.targetPrice) met = true;
+      if (o.action === "SELL" && currentActivePrice >= o.targetPrice) met = true;
     } else if (o.type === "SLM") {
-      if (o.action === "BUY" && currentActivePrice >= o.targetPrice) conditionMet = true;
-      if (o.action === "SELL" && currentActivePrice <= o.targetPrice) conditionMet = true;
+      if (o.action === "BUY" && currentActivePrice >= o.targetPrice) met = true;
+      if (o.action === "SELL" && currentActivePrice <= o.targetPrice) met = true;
     }
-
-    if (conditionMet) {
-      logActivity(`TRIGGER MET: Order profile parameters verified for ${o.symbol}. Processing trade...`);
-      let success = executeOrderLogic(o.symbol, o.action, o.qty, currentActivePrice, o.currency);
-      if (success) { pendingOrders.splice(i, 1); modificationsMade = true; }
+    if (met && executeOrderLogic(o.symbol, o.action, o.qty, currentActivePrice, o.currency)) {
+      pendingOrders.splice(i, 1); changed = true;
     }
   }
-
-  if (modificationsMade) {
-    localStorage.setItem("game_orders_v3", JSON.stringify(pendingOrders));
-    updateGameBalances();
-  }
+  if (changed) { localStorage.setItem("game_orders_final", JSON.stringify(pendingOrders)); updateGameBalances(); }
 }
 
 function cancelPendingOrder(id) {
   pendingOrders = pendingOrders.filter(o => o.id !== id);
-  localStorage.setItem("game_orders_v3", JSON.stringify(pendingOrders));
-  logActivity("Pending tracking criteria entry purged from ledger.");
-  updateGameBalances();
+  localStorage.setItem("game_orders_final", JSON.stringify(pendingOrders));
+  logActivity("Order cancelled."); updateGameBalances();
 }
 
-function executeOrderLogic(symbol, action, qty, entryAssetPrice, assetCurrency) {
-  // Conversions Step: Evaluate transaction costs inside local Rupee base ledger units
-  const priceInINR = (assetCurrency === "$") ? (entryAssetPrice * USD_TO_INR) : entryAssetPrice;
-  const transactionTotalINR = priceInINR * qty;
+function executeOrderLogic(symbol, action, qty, price, curr) {
+  const priceINR = (curr === "$") ? (price * USD_TO_INR) : price;
+  const totalINR = priceINR * qty;
 
   if (action === "BUY") {
-    if (cashBalance < transactionTotalINR) {
-      logActivity(`EXECUTION FAILURE: Order rejected. Cash resources insufficient to match position cost.`);
-      return false;
-    }
-    cashBalance -= transactionTotalINR;
-
-    if (!holdings[symbol]) holdings[symbol] = { qty: 0, avgPriceINR: 0, nativeCurrency: assetCurrency };
-    
-    const currentCostINR = holdings[symbol].qty * holdings[symbol].avgPriceINR;
+    if (cashBalance < totalINR) { logActivity(`FAIL: Insufficient Cash for ${symbol}`); return false; }
+    cashBalance -= totalINR;
+    if (!holdings[symbol]) holdings[symbol] = { qty: 0, avgPriceINR: 0, nativeCurrency: curr };
+    const cost = holdings[symbol].qty * holdings[symbol].avgPriceINR;
     holdings[symbol].qty += qty;
-    holdings[symbol].avgPriceINR = (currentCostINR + transactionTotalINR) / holdings[symbol].qty;
-
-    logActivity(`EXECUTED BUY: ${qty} shares of ${symbol} at ${assetCurrency}${entryAssetPrice.toFixed(2)} (Position Capital Outflow: ₹${transactionTotalINR.toFixed(2)})`);
+    holdings[symbol].avgPriceINR = (cost + totalINR) / holdings[symbol].qty;
+    logActivity(`BOUGHT ${qty}x ${symbol} @ ${curr}${price.toFixed(2)} (₹${totalINR.toFixed(2)})`);
   } else if (action === "SELL") {
-    if (!holdings[symbol] || holdings[symbol].qty < qty) {
-      logActivity(`EXECUTION FAILURE: Order canceled. Holdings inventory execution mismatch.`);
-      return false;
-    }
-    cashBalance += transactionTotalINR;
+    if (!holdings[symbol] || holdings[symbol].qty < qty) { logActivity(`FAIL: Insufficient Shares of ${symbol}`); return false; }
+    cashBalance += totalINR;
     holdings[symbol].qty -= qty;
-
-    logActivity(`EXECUTED SELL: ${qty} shares of ${symbol} at ${assetCurrency}${entryAssetPrice.toFixed(2)} (Cash Inflow: ₹${transactionTotalINR.toFixed(2)})`);
+    logActivity(`SOLD ${qty}x ${symbol} @ ${curr}${price.toFixed(2)} (₹${totalINR.toFixed(2)})`);
     if (holdings[symbol].qty === 0) delete holdings[symbol];
   }
-
-  localStorage.setItem("game_cash_v3", cashBalance);
-  localStorage.setItem("game_holdings_v3", JSON.stringify(holdings));
-  updateGameBalances();
-  return true;
+  localStorage.setItem("game_cash_final", cashBalance);
+  localStorage.setItem("game_holdings_final", JSON.stringify(holdings));
+  updateGameBalances(); return true;
 }
 
 function updateGameBalances() {
   document.getElementById("wallet-balance").innerText = `₹ ${cashBalance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+  let holdingVal = 0;
   
-  let dynamicHoldingValueINR = 0;
-  const pBody = document.getElementById("portfolio-table");
-  pBody.innerHTML = "";
-  const heldKeys = Object.keys(holdings);
-
-  if(heldKeys.length === 0) {
-    pBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">No active portfolio holdings.</td></tr>`;
-  } else {
-    heldKeys.forEach(sym => {
+  const pBody = document.getElementById("portfolio-table"); pBody.innerHTML = "";
+  const keys = Object.keys(holdings);
+  if(keys.length === 0) pBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">No active positions.</td></tr>`;
+  else {
+    keys.forEach(sym => {
       const h = holdings[sym];
-      let liveAssetPriceNative = h.avgPriceINR / (h.nativeCurrency === "$" ? USD_TO_INR : 1);
-      if (sym === currentActiveSymbol) liveAssetPriceNative = currentActivePrice;
+      let livePriceINR = (sym === currentActiveSymbol) ? 
+        ((h.nativeCurrency === "$") ? (currentActivePrice * USD_TO_INR) : currentActivePrice) : 
+        h.avgPriceINR; // Fallback if not active screen
       
-      const livePriceINR = (h.nativeCurrency === "$") ? (liveAssetPriceNative * USD_TO_INR) : liveAssetPriceNative;
-      const currentPositionValueINR = h.qty * livePriceINR;
-      dynamicHoldingValueINR += currentPositionValueINR;
-
-      const positionPnLINR = currentPositionValueINR - (h.qty * h.avgPriceINR);
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td style="font-weight:bold;">${sym}</td>
-        <td>${h.qty}</td>
-        <td>₹${h.avgPriceINR.toFixed(2)}</td>
-        <td>₹${livePriceINR.toFixed(2)}</td>
-        <td class="${positionPnLINR >= 0 ? 'green' : 'red'}">₹${positionPnLINR.toFixed(2)}</td>
-      `;
-      pBody.appendChild(row);
+      const val = h.qty * livePriceINR; holdingVal += val;
+      const pnl = val - (h.qty * h.avgPriceINR);
+      pBody.innerHTML += `<tr><td><b>${sym}</b></td><td>${h.qty}</td><td>₹${h.avgPriceINR.toFixed(2)}</td><td>₹${livePriceINR.toFixed(2)}</td><td class="${pnl>=0?'green':'red'}">₹${pnl.toFixed(2)}</td></tr>`;
     });
   }
 
-  const oBody = document.getElementById("pending-orders-table");
-  oBody.innerHTML = "";
-  if(pendingOrders.length === 0) {
-    oBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b;">No active tracking triggers pending execution.</td></tr>`;
-  } else {
+  const oBody = document.getElementById("pending-orders-table"); oBody.innerHTML = "";
+  if(pendingOrders.length === 0) oBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b;">No active triggers.</td></tr>`;
+  else {
     pendingOrders.forEach(o => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td style="font-weight:bold;">${o.symbol}</td>
-        <td><span style="background:#475569; padding:2px 6px; border-radius:4px; font-size:11px;">${o.type}</span></td>
-        <td class="${o.action === 'BUY'?'green':'red'}">${o.action}</td>
-        <td>${o.qty}</td>
-        <td>${o.currency}${o.targetPrice.toFixed(2)}</td>
-        <td><button style="background:#dc2626; padding:4px 8px; font-size:11px;" onclick="cancelPendingOrder(${o.id})">Cancel</button></td>
-      `;
-      oBody.appendChild(row);
+      oBody.innerHTML += `<tr><td><b>${o.symbol}</b></td><td><span style="background:#475569;padding:2px 6px;border-radius:4px;">${o.type}</span></td><td class="${o.action==='BUY'?'green':'red'}">${o.action}</td><td>${o.qty}</td><td>${o.currency}${o.targetPrice.toFixed(2)}</td><td><button style="background:#dc2626;padding:4px 8px;" onclick="cancelPendingOrder(${o.id})">Cancel</button></td></tr>`;
     });
   }
 
-  const netWorthINR = cashBalance + dynamicHoldingValueINR;
-  document.getElementById("portfolio-value").innerText = `₹ ${dynamicHoldingValueINR.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-  document.getElementById("total-net-worth").innerText = `₹ ${netWorthINR.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+  document.getElementById("portfolio-value").innerText = `₹ ${holdingVal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+  document.getElementById("total-net-worth").innerText = `₹ ${(cashBalance + holdingVal).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
 }
 
-function logActivity(message) {
-  const box = document.getElementById("log-box");
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  box.innerHTML = `[${time}] ${message}\n` + box.innerHTML;
+function logActivity(msg) {
+  const b = document.getElementById("log-box");
+  b.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}\n` + b.innerHTML;
 }
 
-function renderLineChart(label, labels, dataPoints, pos) {
-  if(chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart"), {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [{ label: label, data: dataPoints, borderColor: pos ? '#22c55e' : '#ef4444', backgroundColor: 'transparent', borderWidth: 2.5, tension: 0.15, pointRadius: 2 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }, y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } } }
-    }
-  });
-}
-
-window.onload = () => {
-  buildWatchlist();
-  loadAssetData("SENSEX");
-};
+window.onload = () => buildWatchlist();
 </script>
 </body>
 </html>
