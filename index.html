@@ -74,7 +74,7 @@ small{color:#cbd5e1}
 </div>
 
 <script>
-// Your integrated API configurations
+// Active integrated configuration profiles
 const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
 const GEMINI_API_KEY = "AQ.Ab8RN6LquC-e4QqaJhm1dGqxWZmnaHo4GDnClBfpqZ_insGSKw";
 
@@ -115,16 +115,16 @@ function handleSearch() {
   if(query) loadAssetData(query);
 }
 
-// Orchestrator: Tries Twelve Data API first, steps down to Gemini AI on constraint failure
+// Orchestrator Logic
 async function loadAssetData(symbol) {
   updateStatusBadge("Engine: 12Data", "#2563eb");
   
-  // 1. Try real financial endpoints
+  // 1. Attempt real market fetch
   let twelveDataSuccess = await fetchTwelveData(symbol);
   if (twelveDataSuccess) return;
 
-  // 2. Failover directly to your custom Gemini Key
-  console.warn("Twelve Data failed or hit limits. Transferring execution to Google Gemini AI...");
+  // 2. Automated Failover route out to Gemini AI Studio
+  console.warn("Twelve Data inactive or rate limited. Shifting flow context to Google Gemini Free Tier...");
   updateStatusBadge("Engine: Gemini AI", "#16a34a");
   await fetchGeminiData(symbol);
 }
@@ -135,7 +135,7 @@ function updateStatusBadge(text, bgColor) {
   badge.style.background = bgColor;
 }
 
-// Twelve Data Fetch Engine
+// Twelve Data Endpoint Wrapper
 async function fetchTwelveData(symbol) {
   try {
     const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${TWELVE_DATA_KEY}`;
@@ -173,39 +173,38 @@ async function fetchTwelveData(symbol) {
     renderLineChart(symbol.split(":")[0], labels, prices, isPositive);
     return true;
   } catch (error) {
-    console.error("Twelve Data fetch error:", error);
+    console.error("Twelve Data endpoint exception:", error);
     return false;
   }
 }
 
-// Native Google Gemini Flash API Request Channel
+// Fixed Google Gemini API Fetch Channel
 async function fetchGeminiData(symbol) {
   try {
-    // Calling the precise native Gemini API Endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // Correct URL endpoint mapping directly to the recommended stable production model path
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     
-    const promptText = `Return a raw JSON structure representing the current financial market mock parameters and a 15-day closing price array for the asset: "${symbol}". You must return ONLY valid raw JSON data matching this exact pattern, nothing else: {"name": "Asset Full Corporate Name", "price": 2500.50, "change": 12.30, "percent_change": 0.49, "currency": "₹", "history": [2450, 2462, 2470, 2485, 2500.50]}. Supply 15 values inside the history field. No markdown syntax wrapper, no conversation text.`;
+    const promptText = `Provide the current price metrics and a sequential 15-day closing history data array for the financial asset symbol: "${symbol}". Return a clean, parsable schema following this design exactly: {"name": "Full Corporate Name", "price": 2500.50, "change": 12.30, "percent_change": 0.49, "currency": "₹", "history": [2450, 2462, 2470, 2485, 2500.50]}. Ensure there are exactly 15 historical points inside the history array.`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }] }]
+        contents: [{ parts: [{ text: promptText }] }],
+        // Enforces structural JSON constraint natively to avoid string delimiter wrapping exceptions
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       })
     });
 
-    if(!response.ok) throw new Error("Gemini network error");
+    if(!response.ok) throw new Error(`Gemini connection error status: ${response.status}`);
     
     const responseJson = await response.json();
-    let rawText = responseJson.candidates[0].content.parts[0].text.trim();
+    const rawText = responseJson.candidates[0].content.parts[0].text.trim();
+    const marketData = JSON.parse(rawText);
 
-    // Strip out markdown delimiters if model includes them
-    if (rawText.startsWith("```json")) rawText = rawText.replace("```json", "").replace("```", "");
-    else if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "");
-
-    const marketData = JSON.parse(rawText.trim());
-
-    // Paint parsed metrics to interface DOM
+    // Bind parsed attributes onto DOM text panels
     document.getElementById("company").innerText = marketData.name;
     document.getElementById("price").innerText = `${marketData.currency} ${parseFloat(marketData.price).toFixed(2)}`;
     
@@ -217,7 +216,7 @@ async function fetchGeminiData(symbol) {
     renderLineChart(symbol.split(":")[0], labels, marketData.history, isPositive);
 
   } catch (error) {
-    console.error("Gemini context resolution error:", error);
+    console.error("Gemini pipeline exception:", error);
     alert("Asset mapping initialization failed on both API interfaces.");
   }
 }
