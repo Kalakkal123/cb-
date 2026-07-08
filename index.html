@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ultimate Multi-API Trading Dashboard</title>
+<title>Universal Trading Simulator</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
-.app-container{display:flex;height:100vh;max-width:1400px;margin:0 auto}
+.app-container{display:flex;height:100vh;max-width:1600px;margin:0 auto}
 
-.main-content{flex:1;padding:30px;overflow-y:auto;display:flex;flex-direction:column}
+.main-content{flex:1;padding:25px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
 .sidebar{width:320px;background:#1e293b;border-left:1px solid #334155;display:flex;flex-direction:column;height:100%}
 .sidebar-header{padding:20px;border-bottom:1px solid #334155}
 .sidebar-header h3{margin:0;font-size:18px}
@@ -19,73 +19,128 @@ body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:
 .stock-item .ticker{font-weight:bold;font-size:15px}
 .stock-item .name{font-size:12px;color:#cbd5e1;margin-top:2px}
 .stock-item .market-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#475569;font-weight:bold}
-.card{background:#1e293b;padding:25px;border-radius:16px;border:1px solid #334155;display:flex;flex-direction:column;flex:1;}
+
+.card{background:#1e293b;padding:25px;border-radius:16px;border:1px solid #334155;display:flex;flex-direction:column}
 .search-box{display:flex;gap:10px;margin-bottom:20px}
 input,button{padding:12px;border:none;border-radius:8px;font-size:16px}
-input{flex:1;background:#334155;color:#fff}
+input{background:#334155;color:#fff}
 input:focus{outline:2px solid #2563eb}
-button{background:#2563eb;color:#fff;cursor:pointer;font-weight:bold;padding:12px 24px}
+button{background:#2563eb;color:#fff;cursor:pointer;font-weight:bold}
 button:hover{background:#1d4ed8}
-h1{margin-top:0;font-size:28px}
-#price{font-size:44px;font-weight:bold;margin-top:15px;letter-spacing:-1px}
-#change{font-size:18px;margin-bottom:15px;font-weight:500}
+
+.game-controls{display:flex;gap:15px;margin-top:15px;align-items:center;background:#334155;padding:15px;border-radius:12px}
+.btn-buy{background:#16a34a}.btn-buy:hover{background:#15803d}
+.btn-sell{background:#dc2626}.btn-sell:hover{background:#b91c1c}
+
+.dashboard-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:10px;text-align:left;border-bottom:1px solid #334155}
+th{color:#cbd5e1;font-size:14px}
+
+.log-box{background:#0f172a;padding:12px;border-radius:8px;height:120px;overflow-y:auto;font-family:monospace;font-size:13px;color:#22c55e}
+
+h1,h2{margin:0}
+#price{font-size:38px;font-weight:bold;margin-top:10px}
 .green{color:#22c55e}.red{color:#ef4444}
-.chart-container{margin-top:20px;position:relative;flex:1;min-height:350px}
+.chart-container{margin-top:15px;position:relative;height:280px}
 canvas{background:#1e293b;border-radius:12px}
-small{color:#cbd5e1}
 .status-badge{font-size:12px;background:#2563eb;padding:4px 10px;border-radius:6px;float:right;font-weight:bold}
 ::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#475569;border-radius:10px}
-::-webkit-scrollbar-thumb:hover{background:#64748b}
 </style>
 </head>
 <body>
 
 <div class="app-container">
   <div class="main-content">
+    
+    <div class="card" style="padding:15px 25px; flex-direction:row; justify-content:space-between; align-items:center;">
+      <h2 style="font-size:20px; color:#38bdf8;">💰 Cash Balance: <span id="wallet-balance">₹10,00,000.00</span></h2>
+      <h2>💼 Net Portfolio Value: <span id="portfolio-value">₹0.00</span></h2>
+    </div>
+
     <div class="card">
-      <div class="status-badge" id="api-status">Engine: 12Data</div>
-      <h1>📊 Multi-API Trading Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>Chains 4 distinct public developer endpoints for uninterrupted live market quotes.</small></p>
+      <div>
+        <div class="status-badge" id="api-status">Engine: TwelveData</div>
+        <h1 style="font-size:24px;">📈 Predict-Proof Trading Arena</h1>
+      </div>
       
-      <div class="search-box">
-        <input id="symbol" placeholder="Search any asset (e.g., AAPL, AMD, GOOGL, CUPID, SENSEX, RELIANCE)" value="SENSEX">
+      <div class="search-box" style="margin-top:15px;">
+        <input id="symbol" style="flex:1;" placeholder="Type literally anything (e.g., TSLA, CUPID, SENSEX, NIFTY, BTC, GOLD)" value="SENSEX">
         <button onclick="handleSearch()">Search Across Networks</button>
       </div>
 
-      <h2 id="company" style="margin-bottom:5px; color:#f8fafc;">--</h2>
-      <div id="price">--</div>
-      <div id="change">--</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+        <div>
+          <h2 id="company" style="color:#f8fafc;">--</h2>
+          <div id="price">--</div>
+          <div id="change">--</div>
+        </div>
+        
+        <div class="game-controls">
+          <input id="trade-qty" type="number" min="1" value="5" style="width:70px; text-align:center;">
+          <button class="btn-buy" onclick="executeTrade('BUY')">BUY</button>
+          <button class="btn-sell" onclick="executeTrade('SELL')">SELL</button>
+        </div>
+      </div>
 
       <div class="chart-container">
         <canvas id="chart"></canvas>
       </div>
     </div>
+
+    <div class="dashboard-row">
+      <div class="card">
+        <h3>Current Portfolio Positions</h3>
+        <div style="overflow-y:auto; max-height:150px;">
+          <table>
+            <thead>
+              <tr><th>Asset</th><th>Qty</th><th>Avg Buy</th><th>Current</th><th>P&L</th></tr>
+            </thead>
+            <tbody id="portfolio-table">
+              <tr><td colspan="5" style="text-align:center; color:#64748b;">No active positions held.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Live Action Activity Tracker Logs</h3>
+        <div class="log-box" id="log-box">
+          [System Ready. Input fields set to dynamic tracking architecture.]
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="sidebar">
     <div class="sidebar-header">
-      <h3>🔥 Top Diverse Watchlist</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to instantly test route mapping</p>
+      <h3>🔥 Top Benchmark Assets</h3>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to execute adaptive queries</p>
     </div>
     <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
 
 <script>
-// Chained API Keys Configuration Panel
+// Chained Multi-Vendor API Tokens
 const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
 const ALPHA_VANTAGE_KEY = "A4TET8QX2U6VNHR8";
 const GEMINI_API_KEY = "AQ.Ab8RN6LquC-e4QqaJhm1dGqxWZmnaHo4GDnClBfpqZ_insGSKw";
 
 let chart;
+let currentActiveSymbol = "";
+let currentActivePrice = 0;
+let currentActiveCurrency = "₹";
+
+let cashBalance = parseFloat(localStorage.getItem("game_cash")) || 1000000.00;
+let holdings = JSON.parse(localStorage.getItem("game_holdings")) || {};
 
 const popularStocks = [
   { ticker: "SENSEX", name: "BSE SENSEX Index", market: "INDEX" },
   { ticker: "AMD", name: "Advanced Micro Devices", market: "NASDAQ" },
   { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
-  { ticker: "GOOGL", name: "Alphabet Inc.", market: "NASDAQ" },
   { ticker: "CUPID", name: "Cupid Limited", market: "NSE" },
   { ticker: "RELIANCE", name: "Reliance Industries", market: "NSE" }
 ];
@@ -100,13 +155,7 @@ function buildWatchlist() {
       document.getElementById("symbol").value = stock.ticker;
       loadAssetData(stock.ticker);
     };
-    item.innerHTML = `
-      <div>
-        <div class="ticker">${stock.ticker}</div>
-        <div class="name">${stock.name}</div>
-      </div>
-      <span class="market-tag">${stock.market}</span>
-    `;
+    item.innerHTML = `<div><div class="ticker">${stock.ticker}</div><div class="name">${stock.name}</div></div><span class="market-tag">${stock.market}</span>`;
     container.appendChild(item);
   });
 }
@@ -116,27 +165,26 @@ function handleSearch() {
   if(query) loadAssetData(query);
 }
 
-// Master Fallback Controller Pipeline
+// Master Fallback Controller Core Orchestration Pipeline
 async function loadAssetData(symbol) {
   // --- TIER 1: TWELVE DATA API ---
   updateStatusBadge("Engine: TwelveData", "#2563eb");
-  let tier1Success = await fetchTwelveData(symbol);
-  if (tier1Success) return;
+  let t1 = await fetchTwelveData(symbol);
+  if (!t1 && !symbol.includes(":")) t1 = await fetchTwelveData(`${symbol}:NSE`); // Adaptive retry 
+  if (t1) return;
 
   // --- TIER 2: ALPHA VANTAGE API ---
-  console.warn("Tier 1 exhausted or incompatible. Swapping to Alpha Vantage API...");
   updateStatusBadge("Engine: AlphaVantage", "#7c3aed");
-  let tier2Success = await fetchAlphaVantage(symbol);
-  if (tier2Success) return;
+  let t2 = await fetchAlphaVantage(symbol);
+  if (!t2 && !symbol.includes(".")) t2 = await fetchAlphaVantage(`${symbol}.BSE`); // Adaptive retry
+  if (t2) return;
 
-  // --- TIER 3: GOOGLE GEMINI FREE API ---
-  console.warn("Tier 2 exhausted or incompatible. Swapping to Google Gemini API...");
+  // --- TIER 3: GOOGLE GEMINI FREE INTUITIVE INTERPRETER ---
   updateStatusBadge("Engine: Google Gemini", "#16a34a");
-  let tier3Success = await fetchGeminiData(symbol);
-  if (tier3Success) return;
+  let t3 = await fetchGeminiData(symbol);
+  if (t3) return;
 
-  // --- TIER 4: ENDLESS PUBLIC CORS NETWORK ---
-  console.warn("Tier 3 exhausted or unauthorized. Routing to Endless Public Network Proxy...");
+  // --- TIER 4: ENDLESS PUBLIC NETWORK PROXY FALLBACK ---
   updateStatusBadge("Engine: Live Backup Net", "#b45309");
   await fetchLiveBackupNetwork(symbol);
 }
@@ -147,175 +195,202 @@ function updateStatusBadge(text, bgColor) {
   badge.style.background = bgColor;
 }
 
-// Tier 1 Engine: Twelve Data API
+// Tier 1 Engine: Twelve Data
 async function fetchTwelveData(symbol) {
   try {
-    let exchangeParam = "";
-    if (["RELIANCE", "TCS", "CUPID"].includes(symbol)) exchangeParam = "&exchange=NSE";
+    const quote = await fetch(`https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${TWELVE_DATA_KEY}`).then(r=>r.json());
+    if(quote.code === 429 || quote.status === "error" || !quote.close) return false;
+
+    const ts = await fetch(`https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`).then(r=>r.json());
+    if(!ts.values || ts.values.length === 0) return false;
+
+    currentActiveSymbol = symbol.split(":")[0].split(".")[0];
+    currentActivePrice = parseFloat(quote.close);
+    currentActiveCurrency = (quote.currency === "INR" || symbol.includes("NSE")) ? "₹" : "$";
+
+    updateUI(quote.name || currentActiveSymbol, currentActiveCurrency, currentActivePrice, parseFloat(quote.change), parseFloat(quote.percent_change));
     
-    const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}${exchangeParam}&apikey=${TWELVE_DATA_KEY}`;
-    const quoteResponse = await fetch(quoteUrl);
-    const quoteData = await quoteResponse.json();
-    
-    if(quoteData.code === 429 || quoteData.status === "error" || !quoteData.close) return false;
-
-    const tsUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}${exchangeParam}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`;
-    const tsResponse = await fetch(tsUrl);
-    const tsData = await tsResponse.json();
-
-    if(!tsData.values || tsData.values.length === 0) return false;
-
-    const currentPrice = parseFloat(quoteData.close).toFixed(2);
-    const changeValue = parseFloat(quoteData.change).toFixed(2);
-    const percentChange = parseFloat(quoteData.percent_change).toFixed(2);
-    const currencySymbol = (quoteData.currency === "INR" || exchangeParam.includes("NSE")) ? "₹" : "$";
-
-    updateUI(quoteData.name || symbol, currencySymbol, currentPrice, changeValue, percentChange);
-
-    const history = [...tsData.values].reverse();
-    const labels = history.map(v => new Date(v.datetime).toLocaleDateString('en-US', {day:'2-digit', month:'short'}));
-    const prices = history.map(v => parseFloat(v.close).toFixed(2));
-
-    renderLineChart(symbol, labels, prices, changeValue >= 0);
+    const history = [...ts.values].reverse();
+    renderLineChart(currentActiveSymbol, history.map(v => new Date(v.datetime).toLocaleDateString('en-US', {day:'2-digit', month:'short'})), history.map(v => parseFloat(v.close)), parseFloat(quote.change) >= 0);
     return true;
   } catch (e) { return false; }
 }
 
-// Tier 2 Engine: Alpha Vantage API
+// Tier 2 Engine: Alpha Vantage
 async function fetchAlphaVantage(symbol) {
   try {
-    const ticker = ["RELIANCE", "TCS", "CUPID"].includes(symbol) ? `${symbol}.BSE` : symbol;
-    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    if (data["Note"] || data["Information"] || !data["Time Series (Daily)"]) return false;
+    const data = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${ALPHA_VANTAGE_KEY}`).then(r=>r.json());
+    if (!data["Time Series (Daily)"]) return false;
 
-    const timeSeries = data["Time Series (Daily)"];
-    const dates = Object.keys(timeSeries).slice(0, 15).reverse();
-    const prices = dates.map(d => parseFloat(timeSeries[d]["4. close"]));
+    const ts = data["Time Series (Daily)"];
+    const dates = Object.keys(ts).slice(0, 15).reverse();
+    const prices = dates.map(d => parseFloat(ts[d]["4. close"]));
     
-    const currentPrice = prices[prices.length - 1];
-    const previousPrice = prices[prices.length - 2] || currentPrice;
-    const change = currentPrice - previousPrice;
-    const percentChange = (change / previousPrice) * 100;
-    const currencySymbol = ticker.includes("BSE") ? "₹" : "$";
+    currentActiveSymbol = symbol.split(".")[0];
+    currentActivePrice = prices[prices.length - 1];
+    currentActiveCurrency = symbol.includes("BSE") ? "₹" : "$";
 
-    const matched = popularStocks.find(s => s.ticker === symbol);
-    updateUI(matched ? matched.name : symbol, currencySymbol, currentPrice.toFixed(2), change.toFixed(2), percentChange.toFixed(2));
-    
-    const labels = dates.map(d => new Date(d).toLocaleDateString('en-US', {day:'2-digit', month:'short'}));
-    renderLineChart(symbol, labels, prices, change >= 0);
+    const change = currentActivePrice - prices[prices.length - 2];
+    updateUI(currentActiveSymbol, currentActiveCurrency, currentActivePrice, change, (change/prices[prices.length-2])*100);
+    renderLineChart(currentActiveSymbol, dates.map(d => new Date(d).toLocaleDateString('en-US', {day:'2-digit', month:'short'})), prices, change >= 0);
     return true;
   } catch(e) { return false; }
 }
 
-// Tier 3 Engine: Native Google Gemini Free Tier API
+// Tier 3 Engine: Ultimate Catch-All Google Gemini AI Framework
 async function fetchGeminiData(symbol) {
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-    const promptText = `Provide current price metrics and a 15-day closing array for "${symbol}". Return ONLY a raw JSON object matching this format: {"name": "Full Name", "price": 120.50, "change": 1.50, "percent_change": 1.26, "currency": "₹", "history": [115, 117, 119, 120.50]}. Supply 15 values in the history array.`;
+    
+    // Explicit instructional mapping system allowing users to search literally anything
+    const prompt = `You are an intelligent global stock tracker parser. The user searched for: "${symbol}". Figure out what asset, country, index, crypto, or company name they meant. Calculate or provide its approximate current value, matching currency symbol, today's direction change, and a 15-day closing numerical history array. Return ONLY raw valid JSON matching this schema: {"name": "Full Asset Identity Name", "price": 150.00, "change": 1.50, "percent_change": 1.0, "currency": "₹", "history": [140, 142, 145, 150]}. Supply exactly 15 index counts in the history.`;
 
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      })
-    });
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
+    }).then(r=>r.json());
 
-    if(!response.ok) return false; // Gracefully fall through to Tier 4 if key shows 401 error
-    
-    const responseJson = await response.json();
-    const rawText = responseJson.candidates[0].content.parts[0].text.trim();
-    const marketData = JSON.parse(rawText);
+    if(!res.candidates || !res.candidates[0].content.parts[0].text) return false;
 
-    updateUI(marketData.name, marketData.currency, marketData.price, marketData.change, marketData.percent_change);
-    const labels = marketData.history.map((_, idx) => `Day ${idx + 1}`);
-    renderLineChart(symbol, labels, marketData.history, marketData.change >= 0);
+    const market = JSON.parse(res.candidates[0].content.parts[0].text.trim());
+    currentActiveSymbol = symbol;
+    currentActivePrice = market.price;
+    currentActiveCurrency = market.currency;
+
+    updateUI(market.name, market.currency, market.price, market.change, market.percent_change);
+    renderLineChart(symbol, market.history.map((_, i) => `Day ${i+1}`), market.history, market.change >= 0);
     return true;
   } catch (e) { return false; }
 }
 
-// Tier 4 Engine: Unlimited Baseline Public Network Proxy
+// Tier 4 Engine: Endless Public Baseline Network Proxy
 async function fetchLiveBackupNetwork(symbol) {
-  let finalTicker = symbol === "SENSEX" ? "^BSESN" : (["AMD", "AAPL", "GOOGL", "TSLA", "NVDA"].includes(symbol) ? symbol : `${symbol}.NS`);
-  let currencySymbol = symbol === "SENSEX" ? "Pts" : (["AMD", "AAPL", "GOOGL"].includes(symbol) ? "$" : "₹");
+  let yahooSymbol = symbol;
+  currentActiveCurrency = "₹";
+
+  if (symbol === "SENSEX") { yahooSymbol = "^BSESN"; currentActiveCurrency = "Pts"; }
+  else if (symbol === "NIFTY") { yahooSymbol = "^NSEI"; currentActiveCurrency = "Pts"; }
+  else if (["AAPL", "AMD", "GOOGL", "TSLA", "NVDA"].includes(symbol)) { yahooSymbol = symbol; currentActiveCurrency = "$"; }
+  else { yahooSymbol = symbol.includes(".") ? symbol : `${symbol}.NS`; }
 
   try {
-    const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${finalTicker}?range=1mo&interval=1d`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-    
-    const response = await fetch(proxyUrl);
-    const wrapper = await response.json();
-    const data = JSON.parse(wrapper.contents);
-    
+    const data = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1mo&interval=1d`)}`).then(r=>r.json()).then(w=>JSON.parse(w.contents));
     if(!data.chart || !data.chart.result) {
-      alert(`Asset "${symbol}" not recognized across any market API.`);
+      alert(`Asset context unresolvable across all 4 processing nodes: "${symbol}"`);
       return;
     }
+    const res = data.chart.result[0];
+    currentActiveSymbol = symbol;
+    currentActivePrice = res.meta.regularMarketPrice;
 
-    const result = data.chart.result[0];
-    const meta = result.meta;
-    const timestamps = result.timestamp;
-    const quotes = result.indicators.quote[0].close;
+    const change = currentActivePrice - res.meta.previousClose;
+    updateUI(symbol, currentActiveCurrency, currentActivePrice, change, (change / res.meta.previousClose) * 100);
 
-    const currentPrice = meta.regularMarketPrice.toFixed(2);
-    const previousClose = meta.previousClose;
-    const change = (currentPrice - previousClose).toFixed(2);
-    const percentChange = ((change / previousClose) * 100).toFixed(2);
-
-    const matched = popularStocks.find(s => s.ticker === symbol);
-    updateUI(matched ? matched.name : symbol, currencySymbol, currentPrice, change, percentChange);
-
-    const labels = [];
-    const prices = [];
-    for(let i = 0; i < timestamps.length; i++) {
-      if(quotes[i] !== null) {
-        labels.push(new Date(timestamps[i] * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }));
-        prices.push(quotes[i].toFixed(2));
+    const prices = [], labels = [];
+    for(let i = 0; i < res.timestamp.length; i++) {
+      if(res.indicators.quote[0].close[i] !== null) {
+        labels.push(new Date(res.timestamp[i] * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }));
+        prices.push(res.indicators.quote[0].close[i]);
       }
     }
-
     renderLineChart(symbol, labels, prices, change >= 0);
-  } catch (error) {
-    alert("Connection error fetching from baseline backup networks.");
-  }
+  } catch (error) { logActivity("Network lookup connection timed out."); }
 }
 
-function updateUI(name, currency, price, change, percent) {
+function updateUI(name, curr, price, change, percent) {
   document.getElementById("company").innerText = name;
-  document.getElementById("price").innerText = currency === "Pts" ? `${price} Pts` : `${currency} ${price}`;
-  const isPositive = change >= 0;
-  document.getElementById("change").innerHTML = 
-  `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percent}% (${change}) Today</span>`;
+  document.getElementById("price").innerText = curr === "Pts" ? `${price.toFixed(2)} Pts` : `${curr} ${price.toFixed(2)}`;
+  const pos = change >= 0;
+  document.getElementById("change").innerHTML = `<span class="${pos ? 'green' : 'red'}">${pos ? '▲' : '▼'} ${percent.toFixed(2)}% (${change.toFixed(2)}) Today</span>`;
+  updateGameBalances();
 }
 
-function renderLineChart(labelSymbol, labels, dataPoints, isPositive) {
+// Game Core Balance Tracking Rules
+function executeTrade(type) {
+  const qty = parseInt(document.getElementById("trade-qty").value);
+  if (isNaN(qty) || qty <= 0) { alert("Enter a valid integer quantity!"); return; }
+  if (!currentActiveSymbol || currentActivePrice <= 0) { alert("Load valid asset records before executing transactions."); return; }
+
+  const transactionTotal = currentActivePrice * qty;
+
+  if (type === "BUY") {
+    if (cashBalance < transactionTotal) { alert("Insufficient capital assets!"); return; }
+    cashBalance -= transactionTotal;
+    if (!holdings[currentActiveSymbol]) holdings[currentActiveSymbol] = { qty: 0, avgPrice: 0, currency: currentActiveCurrency };
+    
+    const oldCost = holdings[currentActiveSymbol].qty * holdings[currentActiveSymbol].avgPrice;
+    holdings[currentActiveSymbol].qty += qty;
+    holdings[currentActiveSymbol].avgPrice = (oldCost + transactionTotal) / holdings[currentActiveSymbol].qty;
+
+    logActivity(`BOUGHT ${qty} units of ${currentActiveSymbol} at ${currentActiveCurrency}${currentActivePrice.toFixed(2)}`);
+  } else if (type === "SELL") {
+    if (!holdings[currentActiveSymbol] || holdings[currentActiveSymbol].qty < qty) { alert("Holdings balance is insufficient to process trade."); return; }
+    cashBalance += transactionTotal;
+    holdings[currentActiveSymbol].qty -= qty;
+    
+    logActivity(`SOLD ${qty} units of ${currentActiveSymbol} at ${currentActiveCurrency}${currentActivePrice.toFixed(2)}`);
+    if (holdings[currentActiveSymbol].qty === 0) delete holdings[currentActiveSymbol];
+  }
+
+  localStorage.setItem("game_cash", cashBalance);
+  localStorage.setItem("game_holdings", JSON.stringify(holdings));
+  updateGameBalances();
+}
+
+function updateGameBalances() {
+  document.getElementById("wallet-balance").innerText = `₹ ${cashBalance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+  
+  let totalPortfolioValue = 0;
+  const tbody = document.getElementById("portfolio-table");
+  tbody.innerHTML = "";
+
+  const heldKeys = Object.keys(holdings);
+  if (heldKeys.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">No active inventory asset positions.</td></tr>`;
+  } else {
+    heldKeys.forEach(sym => {
+      const h = holdings[sym];
+      const livePrice = (sym === currentActiveSymbol) ? currentActivePrice : h.avgPrice; 
+      const currentVal = h.qty * livePrice;
+      totalPortfolioValue += currentVal;
+
+      const pnlValue = (livePrice - h.avgPrice) * h.qty;
+      const pnlClass = pnlValue >= 0 ? "green" : "red";
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td style="font-weight:bold;">${sym}</td>
+        <td>${h.qty}</td>
+        <td>${h.currency}${h.avgPrice.toFixed(2)}</td>
+        <td>${h.currency}${livePrice.toFixed(2)}</td>
+        <td class="${pnlClass}">${h.currency}${pnlValue.toFixed(2)}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  document.getElementById("portfolio-value").innerText = `₹ ${totalPortfolioValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+}
+
+function logActivity(message) {
+  const box = document.getElementById("log-box");
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  box.innerHTML = `[${time}] ${message}\n` + box.innerHTML;
+}
+
+function renderLineChart(label, labels, dataPoints, pos) {
   if(chart) chart.destroy();
   chart = new Chart(document.getElementById("chart"), {
     type: "line",
     data: {
       labels: labels,
-      datasets: [{
-        label: labelSymbol,
-        data: dataPoints,
-        borderColor: isPositive ? '#22c55e' : '#ef4444',
-        backgroundColor: 'transparent',
-        borderWidth: 2.5,
-        tension: 0.15,
-        pointRadius: 3
-      }]
+      datasets: [{ label: label, data: dataPoints, borderColor: pos ? '#22c55e' : '#ef4444', backgroundColor: 'transparent', borderWidth: 2.5, tension: 0.15, pointRadius: 2 }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
-        y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
-      }
+      scales: { x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }, y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } } }
     }
   });
 }
