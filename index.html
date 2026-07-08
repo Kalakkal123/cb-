@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI-Powered Trading Game Dashboard</title>
+<title>Ultimate Hybrid Trading Game Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:100vh;overflow:hidden}
@@ -33,7 +33,7 @@ h1{margin-top:0;font-size:28px}
 .chart-container{margin-top:20px;position:relative;flex:1;min-height:350px}
 canvas{background:#1e293b;border-radius:12px}
 small{color:#cbd5e1}
-.status-badge{font-size:12px;background:#334155;padding:4px 8px;border-radius:6px;float:right}
+.status-badge{font-size:12px;background:#2563eb;padding:4px 10px;border-radius:6px;float:right;font-weight:bold}
 ::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#475569;border-radius:10px}
@@ -45,13 +45,13 @@ small{color:#cbd5e1}
 <div class="app-container">
   <div class="main-content">
     <div class="card">
-      <div class="status-badge" id="api-status">API: Primary</div>
-      <h1>🤖 AI Trading Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>Powered by OpenRouter <b>nex-agi/nex-n2-pro:free</b>. Search any global symbol or company name.</small></p>
+      <div class="status-badge" id="api-status">Engine: 12Data</div>
+      <h1>📊 Hybrid Stock Dashboard</h1>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>Uses Twelve Data real metrics. Automatically drops back to your AI keys if rate limits are reached or custom tags are typed.</small></p>
       
       <div class="search-box">
-        <input id="symbol" placeholder="Enter stock code or company (e.g., TSLA, RELIANCE, BTC)" value="RELIANCE">
-        <button onclick="handleSearch()">Ask AI Engine</button>
+        <input id="symbol" placeholder="US: AAPL, TSLA | India: RELIANCE:NSE, TCS:NSE" value="RELIANCE:NSE">
+        <button onclick="handleSearch()">Search Dashboard</button>
       </div>
 
       <h2 id="company" style="margin-bottom:5px; color:#f8fafc;">--</h2>
@@ -67,28 +67,27 @@ small{color:#cbd5e1}
   <div class="sidebar">
     <div class="sidebar-header">
       <h3>🔥 Top Simulation Assets</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to generate real-time metrics</p>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to view metrics</p>
     </div>
     <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
 
 <script>
-// ⚠️ PASTE YOUR OPENROUTER API KEYS HERE
-const PRIMARY_KEY = "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";
-const BACKUP_KEY = "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";
+// API Keys Configuration
+const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
+const PRIMARY_AI_KEY = "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";
+const BACKUP_AI_KEY = "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";
 
-let activeKey = PRIMARY_KEY;
-let keyUsingBackup = false;
 let chart;
 
 const popularStocks = [
-  { ticker: "RELIANCE", name: "Reliance Industries", market: "GLOBAL" },
-  { ticker: "TCS", name: "Tata Consultancy Services", market: "GLOBAL" },
-  { ticker: "AAPL", name: "Apple Inc.", market: "GLOBAL" },
-  { ticker: "TSLA", name: "Tesla Inc.", market: "GLOBAL" },
-  { ticker: "NVDA", name: "NVIDIA Corp.", market: "GLOBAL" },
-  { ticker: "BTC", name: "Bitcoin Crypto", market: "GLOBAL" }
+  { ticker: "RELIANCE:NSE", name: "Reliance Industries", market: "NSE" },
+  { ticker: "TCS:NSE", name: "Tata Consultancy Services", market: "NSE" },
+  { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
+  { ticker: "TSLA", name: "Tesla Inc.", market: "NASDAQ" },
+  { ticker: "NVDA", name: "NVIDIA Corp.", market: "NASDAQ" },
+  { ticker: "BTC/USD", name: "Bitcoin Crypto", market: "COINBASE" }
 ];
 
 function buildWatchlist() {
@@ -99,11 +98,11 @@ function buildWatchlist() {
     item.className = "stock-item";
     item.onclick = () => {
       document.getElementById("symbol").value = stock.ticker;
-      loadStockWithAI(stock.ticker);
+      loadStockData(stock.ticker);
     };
     item.innerHTML = `
       <div>
-        <div class="ticker">${stock.ticker}</div>
+        <div class="ticker">${stock.ticker.split(":")[0]}</div>
         <div class="name">${stock.name}</div>
       </div>
       <span class="market-tag">${stock.market}</span>
@@ -114,33 +113,81 @@ function buildWatchlist() {
 
 function handleSearch() {
   const query = document.getElementById("symbol").value.trim().toUpperCase();
-  if(query) loadStockWithAI(query);
+  if(query) loadStockData(query);
 }
 
-async function loadStockWithAI(symbol) {
-  let success = await fetchAIQuote(symbol, activeKey);
+// Global Orchestrator Function: Tries Twelve Data first, fails over to AI
+async function loadStockData(symbol) {
+  updateStatusBadge("Engine: 12Data", "#2563eb");
   
-  // Failover Check: If primary key fails, seamlessly try the backup key
-  if (!success && !keyUsingBackup) {
-    console.warn("Primary key failed or hit limits. Switching to backup OpenRouter key...");
-    keyUsingBackup = true;
-    activeKey = BACKUP_KEY;
-    document.getElementById("api-status").innerText = "API: Backup Enabled";
-    document.getElementById("api-status").style.background = "#b45309";
+  // Step 1: Try real live Twelve Data API
+  let twelveDataSuccess = await fetchTwelveData(symbol);
+  if (twelveDataSuccess) return;
+
+  // Step 2: Failover to Primary AI Key
+  console.warn("Twelve Data failed or hit limits. Routing request to Primary AI Key...");
+  updateStatusBadge("Engine: AI Primary", "#16a34a");
+  let primaryAISuccess = await fetchAIQuote(symbol, PRIMARY_AI_KEY);
+  if (primaryAISuccess) return;
+
+  // Step 3: Failover to Backup AI Key
+  console.warn("Primary AI Key failed or hit limits. Routing to Backup AI Key...");
+  updateStatusBadge("Engine: AI Backup", "#b45309");
+  await fetchAIQuote(symbol, BACKUP_AI_KEY);
+}
+
+function updateStatusBadge(text, bgColor) {
+  const badge = document.getElementById("api-status");
+  badge.innerText = text;
+  badge.style.background = bgColor;
+}
+
+// Actual Twelve Data API Fetch Core Engine
+async function fetchTwelveData(symbol) {
+  try {
+    const quoteUrl = `https://api.twelvedata.com/quote?symbol=${symbol}&apikey=${TWELVE_DATA_KEY}`;
+    const quoteResponse = await fetch(quoteUrl);
+    const quoteData = await quoteResponse.json();
     
-    // Retry once with the backup key
-    await fetchAIQuote(symbol, activeKey);
+    if(quoteData.code === 429 || quoteData.status === "error") return false;
+
+    const tsUrl = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=1day&outputsize=15&apikey=${TWELVE_DATA_KEY}`;
+    const tsResponse = await fetch(tsUrl);
+    const tsData = await tsResponse.json();
+
+    if(!tsData.values || tsData.values.length === 0) return false;
+
+    const currentPrice = parseFloat(quoteData.close).toFixed(2);
+    const changeValue = parseFloat(quoteData.change).toFixed(2);
+    const percentChange = parseFloat(quoteData.percent_change).toFixed(2);
+    const currency = quoteData.currency || (symbol.includes("NSE") ? "INR" : "USD");
+    const currencySymbol = currency === "INR" ? "₹" : "$";
+
+    document.getElementById("company").innerText = quoteData.name || symbol;
+    document.getElementById("price").innerText = `${currencySymbol} ${currentPrice}`;
+    
+    const isPositive = changeValue >= 0;
+    document.getElementById("change").innerHTML = 
+    `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${changeValue}) Today</span>`;
+
+    const history = [...tsData.values].reverse();
+    const labels = history.map(v => {
+      const date = new Date(v.datetime);
+      return date.toLocaleDateString('en-US', {day:'2-digit', month:'short'});
+    });
+    const prices = history.map(v => parseFloat(v.close).toFixed(2));
+
+    renderLineChart(symbol.split(":")[0], labels, prices, isPositive);
+    return true;
+  } catch (error) {
+    console.error("TwelveData fetch crash:", error);
+    return false;
   }
 }
 
+// OpenRouter AI Simulation Layer (With full path protocol fix included)
 async function fetchAIQuote(symbol, apiKey) {
-  if (apiKey.includes("YOUR_")) {
-    alert("Please insert your active OpenRouter keys on lines 54 & 55 inside the script tag!");
-    return true; 
-  }
-
   try {
-    // Structured engineering prompt forcing the model to respond ONLY with clean valid JSON
     const systemPrompt = "You are a precise real-time market data API simulator. You must output raw JSON only, matching this structure perfectly: {\"name\":\"Company Name\",\"price\":2450.50,\"change\":1.25,\"percent_change\":0.05,\"currency\":\"₹\",\"history\":[2400,2410,2420,2435,2450.50]}. Supply 15 numerical data values in the history array representing daily close intervals. No markdown wrapping, no extra words.";
     const userPrompt = `Provide the current status and latest 15-day history for asset ticker or company name: ${symbol}`;
 
@@ -165,13 +212,11 @@ async function fetchAIQuote(symbol, apiKey) {
     const resData = await response.json();
     let rawText = resData.choices[0].message.content.trim();
     
-    // Strip markdown JSON code block ticks if the AI accidentally sends them
     if(rawText.startsWith("```json")) rawText = rawText.replace("```json", "").replace("```", "");
     else if (rawText.startsWith("```")) rawText = rawText.replace(/```/g, "");
 
     const marketData = JSON.parse(rawText.trim());
 
-    // Update UI elements from AI parsed JSON data
     document.getElementById("company").innerText = marketData.name;
     document.getElementById("price").innerText = `${marketData.currency} ${parseFloat(marketData.price).toFixed(2)}`;
     
@@ -179,45 +224,46 @@ async function fetchAIQuote(symbol, apiKey) {
     document.getElementById("change").innerHTML = 
     `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${parseFloat(marketData.percent_change).toFixed(2)}% (${parseFloat(marketData.change).toFixed(2)}) Today</span>`;
 
-    // Map dynamic arbitrary labels for history length
     const labels = marketData.history.map((_, index) => `Day ${index + 1}`);
-
-    if(chart) chart.destroy();
-    chart = new Chart(document.getElementById("chart"), {
-      type: "line",
-      data: {
-        labels: labels,
-        datasets: [{
-          label: symbol,
-          data: marketData.history,
-          borderColor: isPositive ? '#22c55e' : '#ef4444',
-          backgroundColor: 'transparent',
-          borderWidth: 2.5,
-          tension: 0.2,
-          pointRadius: 3
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
-          y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
-        }
-      }
-    });
-
+    renderLineChart(symbol, labels, marketData.history, isPositive);
     return true; 
   } catch (err) {
-    console.error("OpenRouter endpoint parse error:", err);
+    console.error("OpenRouter parse crash:", err);
     return false; 
   }
 }
 
+function renderLineChart(labelSymbol, labels, dataPoints, isPositive) {
+  if(chart) chart.destroy();
+  chart = new Chart(document.getElementById("chart"), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: labelSymbol,
+        data: dataPoints,
+        borderColor: isPositive ? '#22c55e' : '#ef4444',
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        tension: 0.2,
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } },
+        y: { grid: { color: '#334155' }, ticks: { color: '#cbd5e1' } }
+      }
+    }
+  });
+}
+
 window.onload = () => {
   buildWatchlist();
-  loadStockWithAI("RELIANCE");
+  loadStockData("RELIANCE:NSE");
 };
 </script>
 </body>
