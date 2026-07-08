@@ -19,7 +19,7 @@ body{margin:0;background:#0f172a;color:#fff;font-family:Arial,sans-serif;height:
 .stock-item .ticker{font-weight:bold;font-size:15px}
 .stock-item .name{font-size:12px;color:#cbd5e1;margin-top:2px}
 .stock-item .market-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:#475569;font-weight:bold}
-.card{background:#1e293b;padding:25px;border-radius:16px;border:1px solid #334155}
+.card{background:#1e293b;padding:25px;border-radius:16px;border:1px solid #334155;display:flex;flex-direction:column;flex:1;}
 .search-box{display:flex;gap:10px;margin-bottom:20px}
 input,button{padding:12px;border:none;border-radius:8px;font-size:16px}
 input{flex:1;background:#334155;color:#fff}
@@ -43,18 +43,18 @@ small{color:#cbd5e1}
 
 <div class="app-container">
   <div class="main-content">
-    <div class="card" style="display:flex; flex-direction:column; flex:1;">
+    <div class="card">
       <h1>📈 Trading Simulation Dashboard</h1>
-      <p style="margin-top:-5px; margin-bottom:20px;"><small>Search any US ticker (e.g., AAPL) or Indian ticker with extension (e.g., RELIANCE.NS)</small></p>
+      <p style="margin-top:-5px; margin-bottom:20px;"><small>Get a free key from alphavantage.co. US stocks: <b>AAPL</b>, Indian stocks use BSE codes or NSE symbols like <b>RELIANCE.BSE</b> or <b>INFY.BSE</b></small></p>
       
       <div class="search-box">
-        <input id="symbol" placeholder="Enter stock code (e.g., TSLA or INFOSYS.NS)" value="RELIANCE.NS">
+        <input id="symbol" placeholder="Enter stock code (e.g., TSLA or RELIANCE.BSE)" value="RELIANCE.BSE">
         <button onclick="handleSearch()">Search Market</button>
       </div>
 
       <h2 id="company" style="margin-bottom:5px; color:#f8fafc;">--</h2>
       <div id="price">--</div>
-      <div id="change"></div>
+      <div id="change">--</div>
 
       <div class="chart-container">
         <canvas id="chart"></canvas>
@@ -65,33 +65,29 @@ small{color:#cbd5e1}
   <div class="sidebar">
     <div class="sidebar-header">
       <h3>🔥 Top Watchlist Stocks</h3>
-      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to view real-time historical data</p>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to view real-time data</p>
     </div>
-    <div class="stock-list" id="watchlist">
-      </div>
+    <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
 
 <script>
+// ⚠️ PASTE YOUR FREE ALPHA VANTAGE API KEY HERE
+const API_KEY = "A4TET8QX2U6VNHR8"; 
 let chart;
 
-// Array of popular Indian and US stocks for your trading game setup
+// Watchlist array using Alpha Vantage compatible global notation
 const popularStocks = [
-  { ticker: "RELIANCE.NS", name: "Reliance Industries", market: "NSE" },
-  { ticker: "TCS.NS", name: "Tata Consultancy Services", market: "NSE" },
-  { ticker: "INFOSYS.NS", name: "Infosys Limited", market: "NSE" },
-  { ticker: "ZOMATO.NS", name: "Zomato Limited", market: "NSE" },
-  { ticker: "HDFCBANK.NS", name: "HDFC Bank Limited", market: "NSE" },
-  { ticker: "TATAMOTORS.NS", name: "Tata Motors Limited", market: "NSE" },
+  { ticker: "RELIANCE.BSE", name: "Reliance Industries", market: "BSE" },
+  { ticker: "TCS.BSE", name: "Tata Consultancy Services", market: "BSE" },
+  { ticker: "INFY.BSE", name: "Infosys Limited", market: "BSE" },
+  { ticker: "TATAMOTORS.BSE", name: "Tata Motors Limited", market: "BSE" },
   { ticker: "AAPL", name: "Apple Inc.", market: "NASDAQ" },
   { ticker: "TSLA", name: "Tesla, Inc.", market: "NASDAQ" },
   { ticker: "NVDA", name: "NVIDIA Corporation", market: "NASDAQ" },
-  { ticker: "MSFT", name: "Microsoft Corporation", market: "NASDAQ" },
-  { ticker: "AMZN", name: "Amazon.com, Inc.", market: "NASDAQ" },
-  { ticker: "GOOGL", name: "Alphabet Inc.", market: "NASDAQ" }
+  { ticker: "MSFT", name: "Microsoft Corporation", market: "NASDAQ" }
 ];
 
-// Initialize UI Sidebar
 function buildWatchlist() {
   const container = document.getElementById("watchlist");
   container.innerHTML = "";
@@ -99,8 +95,6 @@ function buildWatchlist() {
   popularStocks.forEach(stock => {
     const item = document.createElement("div");
     item.className = "stock-item";
-    item.style.display = "flex";
-    item.style.justifyContent = "space-between";
     item.onclick = () => {
       document.getElementById("symbol").value = stock.ticker;
       loadStock(stock.ticker);
@@ -108,7 +102,7 @@ function buildWatchlist() {
     
     item.innerHTML = `
       <div>
-        <div class="ticker">${stock.ticker.replace(".NS", "")}</div>
+        <div class="ticker">${stock.ticker.split(".")[0]}</div>
         <div class="name">${stock.name}</div>
       </div>
       <span class="market-tag">${stock.market}</span>
@@ -123,74 +117,63 @@ function handleSearch() {
 }
 
 async function loadStock(symbol){
+ if(API_KEY === "YOUR_KEY_HERE") {
+   alert("Please get a free API key from alphavantage.co and paste it into line 54 of the code!");
+   return;
+ }
+
  try {
-   // Fetch public financial metrics routed through the free CORS proxy bypass tool
-   const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1mo&interval=1d`)}`;
+   // Alpha Vantage TIME_SERIES_DAILY returns clean history and metadata natively
+   const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`;
    
-   const response = await fetch(proxyUrl);
-   if (!response.ok) throw new Error("Network issue");
+   const response = await fetch(url);
+   const data = await response.json();
    
-   const wrapper = await response.json();
-   const data = JSON.parse(wrapper.contents);
+   if (data["Note"] || data["Information"]) {
+     alert("API Rate limit hit (Free tier allows 25 requests/day). Wait a minute and try again.");
+     return;
+   }
    
-   if(!data.chart || !data.chart.result) {
-     alert("Stock data not found. Remember to add '.NS' for Indian stocks (like SBIN.NS)!");
+   const timeSeries = data["Time Series (Daily)"];
+   if(!timeSeries) {
+     alert("Stock not found! Use standard US symbols (AAPL) or Indian BSE symbols (RELIANCE.BSE).");
      return;
    }
 
-   const result = data.chart.result[0];
-   const meta = result.meta;
-   const timestamps = result.timestamp;
-   const quotes = result.indicators.quote[0].close;
-
-   if(!timestamps || !quotes) {
-     alert("Data arrays are incomplete for this specific ticker.");
-     return;
-   }
-
-   // Extract core values
-   const currentPrice = meta.regularMarketPrice.toFixed(2);
-   const previousClose = meta.previousClose;
-   const change = (currentPrice - previousClose).toFixed(2);
-   const percentChange = ((change / previousClose) * 100).toFixed(2);
+   // Extract dates and prices
+   const dates = Object.keys(timeSeries).slice(0, 30).reverse(); // Last 30 trading days
+   const prices = dates.map(date => parseFloat(timeSeries[date]["4. close"]));
    
-   // Handle dynamic local currency tags
-   const currencySymbol = (meta.currency === "INR" || symbol.endsWith(".NS")) ? "₹" : "$";
-
-   // Match lookups to names in array or drop down to default ticker string
-   const localMatch = popularStocks.find(s => s.ticker === symbol);
-   document.getElementById("company").innerText = localMatch ? `${localMatch.name} (${symbol.replace(".NS", "")})` : symbol;
+   const currentPrice = prices[prices.length - 1];
+   const previousPrice = prices[prices.length - 2] || currentPrice;
+   const change = (currentPrice - previousPrice).toFixed(2);
+   const percentChange = ((change / previousPrice) * 100).toFixed(2);
    
-   document.getElementById("price").innerText = `${currencySymbol} ${currentPrice}`;
+   // Handle currency indicators
+   const isIndian = symbol.includes("BSE");
+   const currencySymbol = isIndian ? "₹" : "$";
+
+   // Update text panels
+   const matched = popularStocks.find(s => s.ticker === symbol);
+   document.getElementById("company").innerText = matched ? `${matched.name} (${symbol.split(".")[0]})` : symbol;
+   document.getElementById("price").innerText = `${currencySymbol} ${currentPrice.toFixed(2)}`;
    
    const isPositive = change >= 0;
    document.getElementById("change").innerHTML =
-   `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${change}) Today</span>`;
+   `<span class="${isPositive ? 'green' : 'red'}">${isPositive ? '▲' : '▼'} ${percentChange}% (${change}) Since Yesterday</span>`;
 
-   // Process chart labels and historical parameters
-   const labels = [];
-   const prices = [];
-   
-   for(let i = 0; i < timestamps.length; i++) {
-     if(quotes[i] !== null) {
-       const date = new Date(timestamps[i] * 1000);
-       labels.push(date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' }));
-       prices.push(quotes[i].toFixed(2));
-     }
-   }
-
-   // Paint dynamic charting data canvas
+   // Process and render lines
    if(chart) chart.destroy();
    chart = new Chart(document.getElementById("chart"), {
      type: "line",
      data: {
-       labels: labels,
+       labels: dates.map(d => new Date(d).toLocaleDateString('en-US', {day:'2-digit', month:'short'})),
        datasets: [{
          label: symbol,
          data: prices,
          borderColor: isPositive ? '#22c55e' : '#ef4444',
          backgroundColor: 'transparent',
-         borderWidth: 2,
+         borderWidth: 2.5,
          tension: 0.15,
          pointRadius: 2
        }]
@@ -208,14 +191,13 @@ async function loadStock(symbol){
 
  } catch (error) {
    console.error(error);
-   alert("Failed to acquire records. Check spelling or connection layout.");
+   alert("An error occurred while rendering the asset data layout.");
  }
 }
 
-// Initial triggers when local context mounts
 window.onload = () => {
   buildWatchlist();
-  loadStock("RELIANCE.NS"); // Boots default dynamic tracking index onto Reliance
+  loadStock("RELIANCE.BSE"); 
 };
 </script>
 </body>
