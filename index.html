@@ -26,6 +26,11 @@ input:focus,select:focus{outline:2px solid #2563eb}
 button{background:#2563eb;color:#fff;cursor:pointer;font-weight:bold}
 button:hover{background:#1d4ed8}
 
+.key-panel{background:#0f172a;padding:15px;border-radius:10px;border:1px solid #475569;margin-bottom:15px;display:flex;flex-direction:column;gap:8px}
+.key-panel input{padding:8px 12px;font-size:13px}
+.key-panel button{padding:8px;font-size:13px;background:#16a34a}
+.key-panel button:hover{background:#15803d}
+
 .game-controls{display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;background:#1e293b;padding:15px;border-radius:12px;border:1px solid #475569}
 .btn-buy{background:#16a34a}.btn-buy:hover{background:#15803d}
 .btn-sell{background:#dc2626}.btn-sell:hover{background:#b91c1c}
@@ -106,13 +111,25 @@ canvas{background:#1e293b;border-radius:12px}
 
     <div class="card">
       <h3>Live Operations Event Activity Logs</h3>
-      <div class="log-box" id="log-box">[System Online] Auto-Fallback architecture enabled. Zero-crash mode active.</div>
+      <div class="log-box" id="log-box">[System Online] Auto-Fallback architecture enabled. Secure LocalStorage environment configured.</div>
     </div>
 
   </div>
 
   <div class="sidebar">
-    <div class="sidebar-header"><h3>🔥 Top Watchlist</h3><p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to execute adaptive queries</p></div>
+    <div class="sidebar-header">
+      <h3>🔐 Credentials Management</h3>
+      <p style="margin:5px 0 10px 0; font-size:12px; color:#cbd5e1;">Keys save locally to prevent GitHub deletion.</p>
+      
+      <div class="key-panel">
+        <label style="font-size:11px; color:#cbd5e1; font-weight:bold;">GOOGLE GEMINI API KEY</label>
+        <input id="gemini-key-input" type="password" placeholder="Enter AIzaSy... or AQ...">
+        <button onclick="saveGeminiKey()">Save Key Locally</button>
+      </div>
+      
+      <h3 style="margin-top:15px;">🔥 Top Watchlist</h3>
+      <p style="margin:5px 0 0 0; font-size:12px; color:#cbd5e1;">Click to execute queries</p>
+    </div>
     <div class="stock-list" id="watchlist"></div>
   </div>
 </div>
@@ -121,12 +138,9 @@ canvas{background:#1e293b;border-radius:12px}
 // --- CONFIGURATION ---
 const TWELVE_DATA_KEY = "56093876cedd49b1b26e1ba33d9bae36";
 const ALPHA_VANTAGE_KEY = "A4TET8QX2U6VNHR8";
-// You can leave this blank if you don't have a key, the system will bypass it safely!
-const GEMINI_API_KEY = "YOUR_GEMINI_KEY_HERE"; 
-
 const USD_TO_INR = 83.50; 
 
-// --- STATE ---
+// --- STATE MANAGER ---
 let chart;
 let currentActiveSymbol = "";
 let currentActivePrice = 0; 
@@ -147,7 +161,26 @@ const popularStocks = [
 const symbolAliases = { "INFOSYS": "INFY", "HDFC": "HDFCBANK", "GOOGLE": "GOOGL", "INTEL": "INTC", "IDFC": "IDFCFIRSTB" };
 const knownUSStocks = ["AAPL", "AMD", "GOOGL", "TSLA", "NVDA", "MSFT", "AMZN", "META", "INTC", "NFLX"];
 
-// --- INITIALIZATION ---
+// --- SECURE STORAGE HANDLERS ---
+function loadSavedKeys() {
+  const savedKey = localStorage.getItem("user_secure_gemini_key");
+  if(savedKey) {
+    document.getElementById("gemini-key-input").value = savedKey;
+  }
+}
+
+function saveGeminiKey() {
+  const keyVal = document.getElementById("gemini-key-input").value.trim();
+  if(keyVal) {
+    localStorage.setItem("user_secure_gemini_key", keyVal);
+    logActivity("Gemini API key saved to local client storage environment.");
+    alert("Key saved successfully! It will now be used as Tier 3 backup.");
+  } else {
+    localStorage.removeItem("user_secure_gemini_key");
+    logActivity("Local Gemini key string flushed and cleared.");
+  }
+}
+
 function buildWatchlist() {
   const container = document.getElementById("watchlist");
   container.innerHTML = "";
@@ -173,13 +206,7 @@ function toggleTriggerField() {
   if(currentActivePrice > 0) document.getElementById("trigger-price").value = currentActivePrice.toFixed(2);
 }
 
-function updateStatusBadge(text, bgColor) {
-  const badge = document.getElementById("api-status");
-  badge.innerText = text;
-  badge.style.background = bgColor;
-}
-
-// --- MASTER DATA ORCHESTRATOR ---
+// --- MASTER DATA PIPELINE ---
 async function loadAssetData(rawSymbol) {
   let cleaned = rawSymbol.split(":")[0].split(".")[0].trim().toUpperCase();
   if (symbolAliases[cleaned]) cleaned = symbolAliases[cleaned];
@@ -194,23 +221,24 @@ async function loadAssetData(rawSymbol) {
   updateStatusBadge("Engine: AlphaVantage", "#7c3aed");
   if (await fetchAlphaVantage(cleaned, assumeUS)) { processTriggerBookCheck(); return; }
 
-  // 3. Network Proxy
+  // 3. Proxy Network Layer
   updateStatusBadge("Engine: Proxy Network", "#059669");
   if (await fetchLiveBackupNetwork(cleaned, assumeUS)) { processTriggerBookCheck(); return; }
 
-  // 4. AI Generator (Only if key provided)
-  if (GEMINI_API_KEY && GEMINI_API_KEY !== "YOUR_GEMINI_KEY_HERE" && !GEMINI_API_KEY.includes("PASTE")) {
+  // 4. Secure Gemini Local AI Layer
+  const localStorageGeminiKey = localStorage.getItem("user_secure_gemini_key");
+  if (localStorageGeminiKey) {
     updateStatusBadge("Engine: Gemini AI", "#16a34a");
-    if (await fetchGeminiData(cleaned)) { processTriggerBookCheck(); return; }
+    if (await fetchGeminiData(cleaned, localStorageGeminiKey)) { processTriggerBookCheck(); return; }
   }
 
-  // 5. Ultimate Fallback: Never Fail Local Simulator
+  // 5. Hard Crash Absorb Shield: Local Simulation Engine
   updateStatusBadge("Engine: Local Game Sim", "#b45309");
   generateSmartLocalData(cleaned, assumeUS);
   processTriggerBookCheck();
 }
 
-// --- DATA FETCHERS ---
+// --- CORE NETWORK INTERFACES ---
 async function fetchTwelveData(symbol, isUS) {
   try {
     if (symbol === "SENSEX" || symbol === "NIFTY") return false;
@@ -267,10 +295,10 @@ async function fetchLiveBackupNetwork(symbol, isUS) {
   } catch (e) { return false; }
 }
 
-async function fetchGeminiData(symbol) {
+async function fetchGeminiData(symbol, targetKey) {
   try {
-    const prompt = `Return ONLY JSON for financial asset "${symbol}": {"name": "Name", "price": 100.0, "change": 1.0, "percent_change": 1.0, "currency": "₹", "history": [90,92,95,100]}. Provide 15 history array numbers.`;
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const prompt = `Return ONLY raw valid JSON metrics for asset "${symbol}": {"name": "${symbol} Asset profile", "price": 100.0, "change": 1.0, "percent_change": 1.0, "currency": "₹", "history": [90,92,95,100]}. Add exactly 15 index marks in history array.`;
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${targetKey}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
     }).then(r=>r.json());
@@ -295,7 +323,7 @@ function generateSmartLocalData(symbol, isUS) {
   renderSuccess(symbol, symbol === "SENSEX" ? "Pts" : (isUS ? "$" : "₹"), current, current - prev, ((current - prev) / prev) * 100, history, history.map((_,i)=>`Day ${i+1}`), `${symbol} (Simulated)`);
 }
 
-// --- RENDER & GAME LOGIC ---
+// --- RENDER & GAME ENGINE MATRICES ---
 function renderSuccess(symbol, curr, price, change, percent, history, labels, nameOverride = null) {
   currentActiveSymbol = symbol; currentActiveCurrency = curr; currentActivePrice = price;
   
@@ -395,7 +423,7 @@ function updateGameBalances() {
       const h = holdings[sym];
       let livePriceINR = (sym === currentActiveSymbol) ? 
         ((h.nativeCurrency === "$") ? (currentActivePrice * USD_TO_INR) : currentActivePrice) : 
-        h.avgPriceINR; // Fallback if not active screen
+        h.avgPriceINR; 
       
       const val = h.qty * livePriceINR; holdingVal += val;
       const pnl = val - (h.qty * h.avgPriceINR);
@@ -420,7 +448,11 @@ function logActivity(msg) {
   b.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}\n` + b.innerHTML;
 }
 
-window.onload = () => buildWatchlist();
+window.onload = () => {
+  loadSavedKeys();
+  buildWatchlist();
+  loadAssetData("SENSEX");
+};
 </script>
 </body>
 </html>
